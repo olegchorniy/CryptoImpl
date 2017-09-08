@@ -1,0 +1,5 @@
+15 - Alert
+03 03 - Version = TLS v 1.2
+00 02 - Length = 2
+02 - Level = fatal
+28 - Description = Handshake failure

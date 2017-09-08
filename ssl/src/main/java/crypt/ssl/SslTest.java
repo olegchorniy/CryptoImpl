@@ -51,11 +51,13 @@ public class SslTest {
 
                     0, /* Length of Session Id */
 
-                    int16(1), /* Number of Cipher Suites */
-                    int16(0x00004C), /* TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA */
+                    int16(2), /* Bytes in Cipher Suites */
+                    /*int16(0x00004C), // TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA */
+                    int16(0xC02F), // TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA
 
                     1, /* Number of compression methods */
                     0 /* Compression method */
+                    /* int16(0) - should not be present */
             ));
 
             dump(in);
@@ -113,6 +115,8 @@ public class SslTest {
                 allBytes[index++] = value;
             }
         }
+
+        //dump(allBytes);
 
         return allBytes;
     }
@@ -224,6 +228,10 @@ public class SslTest {
         while ((value = reader.read()) != -1) {
             System.out.print((char) value);
         }
+    }
+
+    private static byte fromHex(String hex) {
+        return Byte.parseByte(hex, 16);
     }
 
     private static String hex(int byteValue) {

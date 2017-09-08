@@ -1,16 +1,16 @@
 16
 03 01
-00 c0
+00 c0 = 192 bytes (all that below)
 
 01
-00 00 bc
+00 00 bc = 188 bytes (all that below)
 03 03
 ba 3c ca 4e
 f2 ee b4 4c 72 0b a3 96 69 f7 39 a0 68 79 5d 9c df 53 e0 47 ae 77 10 80 d9 66 6f f2
 
 00
 
-00 1c
+00 1c = 28 bytes in cipher suites
 
 ba ba
 cc a9
@@ -27,12 +27,58 @@ c0 14
 00 35
 00 0a
 
-01 00 00 77 ca ca 00 00 ff 01 00
-01 00 00 00 00 0e 00 0c 00 00 09
-6c 6f 63 61 6c 68
+01 00 - number of compression methods and the method itself
 
-6f 73 74 00 17 00 00 00 23 00 00 00 0d 00 14 00 12 04 03 08
-04 04 01 05 03 08 05 05 01 08 06 06 01 02 01 00 05 00 05 01
-00 00 00 00 00 12 00 00 00 10 00 0e 00 0c 02 68 32 08
-68 74 74 70 2f 31 2e 31 75 50 00 00 00 0b 00 02 01 00 00 0a
-00 0a 00 08 3a 3a 00 1d 00 17 00 18 4a 4a 00 01 00
+00 77 - length (119 bytes)
+
+Extensions, I guess ...
+ca ca
+00 00 - 0 bytes
+
+ff 01
+00 01 - 1 byte
+00
+
+00 00
+00 0e - 14 bytes
+00 0c - size of server name list
+00 - type (0 for hostname)
+00 09 - length of hostname
+6c 6f 63 61 6c 68 6f 73 74 - "localhost"
+
+00 17
+00 00 - 0 bytes
+
+00 23
+00 00 - 0 bytes
+
+00 0d
+00 14 - 20 bytes
+00 12 04 03 08 04 04 01 05 03 08 05 05 01 08 06 06 01 02 01
+
+00 05
+00 05 - 5 bytes
+01 00 00 00 00
+
+00 12
+00 00 - 0 bytes
+
+00 10
+00 0e - 14 bytes
+00 0c 02 68 32 08 68 74 74 70 2f 31 2e 31
+-----------------|-----> "http/1.1" <-----|
+
+75 50
+00 00 - 0 bytes
+
+00 0b
+00 02 - 2 bytes
+01 00
+
+00 0a
+00 0a - 10 bytes
+00 08 3a 3a 00 1d 00 17 00 18
+
+4a 4a
+00 01 - 1 byte
+00
