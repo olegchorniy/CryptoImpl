@@ -1,0 +1,87 @@
+16
+03 03
+05 24 - Length = 1316 bytes
+
+02 - Type = ServerHello
+00 00 46 - Length = 70 bytes
+03 03 - Protocol = TLS v 1.2
+59 b2 e8 4c - Random.gmt_unix_time
+79 8a 77 65 da bf cf 6c 1b 5c 80 07 61 f3 25 74 6b d2 17 c7 03 9f db 3c bd bc b2 a8 - Random.random_bytes
+20 - SessionID Length = 32
+59 b2 e8 4c 7f d1 ba 0d ca 61 ab 99 d5 40 5a 15 9d de 81 36 43 b5 12 1e ca 8e b5 46 05 10 ef 16 - SessionID
+c0 2f - Cipher Suite = TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA
+00 - CompressionMethod = null
+
+0b - Type = Certificate
+00 03 85 - Length = 901 bytes
+00 03 82 - Certificates length = 898 bytes
+00 03 7f - Certificate length = 895 bytes
+30 82 03 7b 30 82 02 63 a0 03 02
+01 02 02 04 7c bc 92 bd 30 0d 06 09 2a 86 48 86 f7 0d 01 01
+0b 05 00 30 6e 31 10 30 0e 06 03 55 04 06 13 07 55 6e 6b 6e
+6f 77 6e 31 10 30 0e 06 03 55 04 08 13 07 55 6e 6b 6e 6f 77
+6e 31 10 30 0e 06 03 55 04 07 13 07 55 6e 6b 6e 6f 77 6e 31
+10 30 0e 06 03 55 04 0a 13 07 55 6e 6b 6e 6f 77 6e 31 10 30
+0e 06 03 55 04 0b 13 07 55 6e 6b 6e 6f 77 6e 31 12 30 10 06
+03 55 04 03 13 09 6c 6f 63 61 6c 68 6f 73 74 30 1e 17 0d 31
+37 30 38 31 36 30 39 30 38 32 31 5a 17 0d 31 37 31 31 31 34
+30 39 30 38 32 31 5a 30 6e 31 10 30 0e 06 03 55 04 06 13 07
+55 6e 6b 6e 6f 77 6e 31 10 30 0e 06 03 55 04 08 13 07 55 6e
+6b 6e 6f 77 6e 31 10 30 0e 06 03 55 04 07 13 07 55 6e 6b 6e
+6f 77 6e 31 10 30 0e 06 03 55 04 0a 13 07 55 6e 6b 6e 6f 77
+6e 31 10 30 0e 06 03 55 04 0b 13 07 55 6e 6b 6e 6f 77 6e 31
+12 30 10 06 03 55 04 03 13 09 6c 6f 63 61 6c 68 6f 73 74 30
+82 01 22 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 82
+01 0f 00 30 82 01 0a 02 82 01 01 00 ae 1e 62 c1 eb 62 3c ce
+e7 55 a1 4b 3d 02 78 54 75 16 d4 53 a5 90 99 60 83 a5 b8 45
+c6 5c 30 9f df 93 42 66 a2 8c 98 30 d8 ad 8b ec 9c 6b dc 27
+77 5d 3d ec 64 62 e7 57 b6 14 2f f4 cb 68 d4 d4 a0 7a fd 24
+24 36 2c 99 e0 5f b2 85 60 02 83 45 e6 c4 ad 66 75 d2 a5 73
+64 06 6a 97 3b 42 99 f8 a0 5b d9 4a af e2 08 2d 2b f9 5e 60
+b5 17 8a 93 b1 70 6a 39 9a 53 c6 60 6b ec 28 f9 c5 c3 13 9b
+a4 76 cb b7 d8 32 7f 60 61 3f aa 82 3f a7 73 ac 06 93 33 22
+9d 74 9b db 66 af d3 49 bb f7 af 39 23 7f 38 08 05 c0 a4 94
+bb 70 dc 01 88 32 2c 2b f2 94 97 ce c5 cb e2 fb 19 e1 f3 86
+c7 f7 45 c3 b7 6c 16 32 a9 32 79 3b d7 75 62 02 3b 0f 2e f8
+44 6d aa 32 23 7a 06 ad e8 fe 5f 67 54 a3 7d 39 ae a8 ce 90
+8e e9 7c 37 d7 3a e6 11 b6 32 33 7b 4e 52 30 87 2a bc 36 f9
+f0 d7 bc 00 0a 77 c5 f7 02 03 01 00 01 a3 21 30 1f 30 1d 06
+03 55 1d 0e 04 16 04 14 87 34 20 bb 77 ae 9d 43 90 7f a6 e2
+37 11 c8 7e 38 d1 1a a5 30 0d 06 09 2a 86 48 86 f7 0d 01 01
+0b 05 00 03 82 01 01 00 3f 61 9d f9 f8 3d 9e 48 e9 3a d9 f9
+02 50 27 79 1e ee 71 98 24 77 f2 53 b0 97 b0 e8 70 20 04 83
+8a 1f d4 26 d6 cb 20 76 cb f3 45 da 9c 8a 6c 4e 99 2e 3f d7
+b1 df 9b 9b cf 42 fa 06 a2 0d 94 9d e1 37 fb 61 70 69 6b 13
+18 b6 40 12 b1 cf 6d 07 89 d3 9d 43 a0 a8 18 93 6a 9e 43 07
+42 35 b8 c8 1c 11 5e 4c 40 c4 a5 ed 8f d1 c7 c2 d0 26 e5 20
+57 1c 4f 3e 5b b8 5a 0d 2b bc 49 a9 ba fa 6a 9a ac 5a e4 98
+c9 76 a7 01 0d d1 a6 d2 df 3f 2e 9a df 8c ac f5 b8 33 b7 c5
+f8 0f 0a f7 ac b5 98 f5 94 63 90 2c 70 32 f5 5d e7 6b d1 46
+2b f7 d8 8a 48 56 1f b3 17 8c 33 67 1e 31 f3 68 f6 93 d0 b9
+a1 49 62 08 a0 e7 c0 c1 1f 46 b4 67 41 3d c2 b2 3f 49 0b 33
+03 8f 30 70 e5 21 2a c0 7e c8 9d 83 b6 26 97 5d 8b 4d ab 6e
+7f 2c e4 e3 17 1e 51 c6 39 5f 83 29 e0 6b 66 6e de 24 07 94
+8c f8 11 12 - DER encoded certificate
+
+0c - Type = Server Key Exchange
+00 01 49 - Length = 329
+03 00 17 41 04 e0 1e 23 18 eb cf cb
+07 91 f0 70 4a ad d7 e9 fd 8e 57 53 93 50 b6 3b 0d d9 63 e7
+3f df e8 d6 3b 71 47 1d 75 c1 de 01 cc 95 67 20 93 cd de b9
+45 c2 f1 5e 2e 5a 9e 9a c6 e6 8b 3f b2 03 60 a1 aa 02 01 01
+00 3b 1a 79 83 39 00 34 f7 91 d8 3f dd ba 3b 94 2a 90 d6 59
+f8 b7 34 33 16 d5 0c 9e 5e 63 37 b4 38 75 ea 1f b2 95 5d 77
+b5 f8 53 42 a2 be 10 f5 65 16 4f f1 d1 24 d8 70 a8 bf 83 aa
+6e 3e 12 f7 3d cb 87 cc eb 98 76 d2 f6 b9 de 6e 7d 69 e9 e5
+67 39 c2 b5 74 63 d4 a8 97 40 96 9f 63 7a 1b dc bf f7 0c 8e
+20 dc 1e 41 ac 37 cf 1d 1f 25 28 81 99 b1 83 93 d6 61 45 00
+bb 2d 58 52 23 23 f1 2a 39 f2 fe f1 76 b7 70 86 6a 47 bd cd
+b2 56 c1 81 eb 7e d9 74 a4 b4 b6 fb 87 07 e7 c3 61 51 61 1f
+38 63 86 b3 6b 34 7c 1d 5f 0c 0a 6e 64 77 98 b9 5e 79 63 c0
+7d 70 22 63 62 c4 d7 54 bc 95 f5 fb 91 87 07 26 70 32 3f 74
+f9 a0 62 39 78 20 25 5e b6 1a 1e a0 b1 fe da 3d 46 e5 24 3d
+8a 03 1d 15 77 3e 7c 66 2a 09 41 e3 55 6f 2a 7a 6e e5 60 8f
+6a 6a d8 c0 68 73 b6 a8 3a ba f9 bc b1 83 68 51 fe
+
+0e - Type = Server Hello Done
+00 00 00 - Length = 0

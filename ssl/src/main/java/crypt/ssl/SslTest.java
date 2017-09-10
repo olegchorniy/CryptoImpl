@@ -1,24 +1,26 @@
 package crypt.ssl;
 
+import org.bouncycastle.crypto.tls.*;
+
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Random;
 
 public class SslTest {
 
-
-    public static void main(String[] args) throws IOException {
-        //sslServer();
+    public static void main(String[] args) throws IOException, CertificateException {
+        //sslPretendingServer();
         sslClient();
     }
 
-
-    public static void sslServer() throws IOException {
+    public static void sslPretendingServer() throws IOException {
         try (ServerSocket serverSocket = new ServerSocket(5555)) {
             Socket client = serverSocket.accept();
             new Thread(() -> {
@@ -33,14 +35,36 @@ public class SslTest {
     }
 
     public static void sslClient() throws IOException {
-        socket("localhost", 8090, (in, out) -> {
+        String host = "rutracker.org";
+        int port = 443;
+        String path = "/forum/index.php";
+
+        socket(host, port, (in, out) -> {
+
+            TlsClientProtocol tls = new TlsClientProtocol(in, out, new SecureRandom());
+
+            tls.connect(new DefaultTlsClient() {
+
+                @Override
+                public TlsAuthentication getAuthentication() throws IOException {
+                    return new ServerOnlyTlsAuthentication() {
+                        @Override
+                        public void notifyServerCertificate(Certificate serverCertificate) throws IOException {
+                        }
+                    };
+                }
+            });
+
+            doSimpleHttpRequest(host, path, tls.getOutputStream(), tls.getInputStream());
+
+            tls.close();
 
             write(out, bytes(
                     22 /* Content Type = Handshake */,
                     3, 3, /* Protocol Version = TLS v 1.2*/
-                    int16(45 /* TBD */), /* Length*/
+                    int16(45 /* TBD */), /* Length*//*
 
-                    /* -------------- Handshake Message ----------- */
+                    *//* -------------- Handshake Message ----------- */
                     1, /* Handshake type = ClientHello*/
                     int24(41 /* TBD */), /* Handshake message data length */
 
@@ -52,12 +76,10 @@ public class SslTest {
                     0, /* Length of Session Id */
 
                     int16(2), /* Bytes in Cipher Suites */
-                    /*int16(0x00004C), // TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA */
                     int16(0xC02F), // TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA
 
                     1, /* Number of compression methods */
                     0 /* Compression method */
-                    /* int16(0) - should not be present */
             ));
 
             dump(in);
@@ -132,33 +154,44 @@ public class SslTest {
         return bytes;
     }
 
-    public static void simpleHttpRequest() throws IOException {
+    public static void runSimpleHttpRequest() throws IOException {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress("localhost", 8090));
 
-            /* Send request */
-            String request = "GET /test HTTP/1.1\r\n" +
-                    "Host: localhost:8090\r\n" +
-                    "Accept: text/html, application/json\r\n" +
-                    "Connection: close\r\n\r\n";
-
-            socket.getOutputStream().write(request.getBytes());
-
-            /* Receive response */
-            String response = copyToString(socket.getInputStream(), StandardCharsets.UTF_8);
-            System.out.println(response);
+            doSimpleHttpRequest("localhost", "/test", socket.getOutputStream(), socket.getInputStream());
         }
     }
 
-    public static String copyToString(InputStream in, Charset charset) throws IOException {
-        StringBuilder out = new StringBuilder();
-        InputStreamReader reader = new InputStreamReader(in, charset);
-        char[] buffer = new char[8192];
-        int bytesRead = -1;
-        while ((bytesRead = reader.read(buffer)) != -1) {
-            out.append(buffer, 0, bytesRead);
+    public static void doSimpleHttpRequest(String host, String path, OutputStream os, InputStream is) throws IOException {
+        /* Send request */
+
+        String request = "GET " + path + " HTTP/1.1\r\n" +
+                "Host: " + host + "\r\n" +
+                "Accept: text/html, application/json\r\n" +
+                /*"Keep-Alive: timeout=1\r\n" +
+                "Connection: Keep-Alive\r\n" +*/
+                "Connection: close\r\n" +
+                "\r\n";
+
+        os.write(request.getBytes());
+
+        /* Receive response */
+        try {
+
+            System.out.println(new Date());
+            printDataWhilePresent(is);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println(new Date());
         }
-        return out.toString();
+    }
+
+    private static void printDataWhilePresent(InputStream is) throws IOException {
+        int value;
+        while ((value = is.read()) != -1) {
+            System.out.print((char) value);
+        }
+        System.out.println();
     }
 
     private static void socket(String host, int port, SocketIOConsumer ioConsumer) throws IOException {
@@ -196,11 +229,11 @@ public class SslTest {
         }
     }
 
-    private static void dump(InputStream is) throws IOException {
+    public static void dump(InputStream is) throws IOException {
         dump(is, 20);
     }
 
-    private static void dump(InputStream is, int charsPerLine) throws IOException {
+    public static void dump(InputStream is, int charsPerLine) throws IOException {
         int value;
         int charsRead = 0;
 

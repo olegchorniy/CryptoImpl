@@ -8,13 +8,28 @@
     <artifactId>crypto-impl</artifactId>
     <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
-    
+
     <modules>
         <module>common</module>
         <module>ssl</module>
     </modules>
 
+
     <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>1.16.10</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk15on</artifactId>
+                <version>1.58</version>
+            </dependency>
+
+        </dependencies>
     </dependencyManagement>
 
     <build>
