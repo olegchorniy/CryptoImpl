@@ -25,4 +25,8 @@ public class SecureConnection implements Connection {
         return null;
     }
 
+    @Override
+    public void close() throws IOException {
+
+    }
 }

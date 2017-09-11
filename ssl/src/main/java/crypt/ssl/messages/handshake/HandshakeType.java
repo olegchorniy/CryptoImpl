@@ -1,10 +1,11 @@
 package crypt.ssl.messages.handshake;
 
 import crypt.ssl.messages.Size;
+import crypt.ssl.messages.TlsEnum;
 import lombok.Getter;
 
 @Getter
-public enum HandshakeType {
+public enum HandshakeType implements TlsEnum {
 
     //@formatter:off
 
