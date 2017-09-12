@@ -5,6 +5,7 @@ import crypt.ssl.messages.TlsEnum;
 import lombok.Getter;
 
 @Getter
+@Size(1)
 public enum AlertDescription implements TlsEnum {
 
     // @formatter:off
@@ -37,7 +38,6 @@ public enum AlertDescription implements TlsEnum {
 
     // @formatter:on
 
-    @Size(1)
     private final int value;
 
     AlertDescription(int value) {

@@ -5,9 +5,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Retention(RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.SOURCE)
 @Target({ElementType.FIELD, ElementType.TYPE})
-public @interface Size {
+public @interface VarLength {
 
+    /**
+     * Means number of bytes needed to indicate length of a variable length field of the whole message.
+     */
     int value();
 }

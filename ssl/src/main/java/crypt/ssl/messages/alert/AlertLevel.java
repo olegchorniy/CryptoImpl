@@ -5,6 +5,7 @@ import crypt.ssl.messages.TlsEnum;
 import lombok.Getter;
 
 @Getter
+@Size(1)
 public enum AlertLevel implements TlsEnum {
 
     // @formatter:off
@@ -12,7 +13,6 @@ public enum AlertLevel implements TlsEnum {
     FATAL   (2);
     // @formatter:on
 
-    @Size(1)
     private final int value;
 
     AlertLevel(int value) {

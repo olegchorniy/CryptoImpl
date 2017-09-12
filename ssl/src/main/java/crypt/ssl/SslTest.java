@@ -1,5 +1,6 @@
 package crypt.ssl;
 
+import crypt.ssl.utils.Hex;
 import org.bouncycastle.crypto.tls.*;
 
 import java.io.*;
@@ -17,7 +18,7 @@ public class SslTest {
 
     public static void main(String[] args) throws IOException, CertificateException {
         //sslPretendingServer();
-        sslClient();
+        //sslClient();
     }
 
     public static void sslPretendingServer() throws IOException {
@@ -59,28 +60,28 @@ public class SslTest {
 
             tls.close();
 
-            write(out, bytes(
-                    22 /* Content Type = Handshake */,
-                    3, 3, /* Protocol Version = TLS v 1.2*/
-                    int16(45 /* TBD */), /* Length*//*
-
-                    *//* -------------- Handshake Message ----------- */
-                    1, /* Handshake type = ClientHello*/
-                    int24(41 /* TBD */), /* Handshake message data length */
-
-                    /* Client Hello */
-                    3, 3, /* Protocol Version = TLS v 1.2*/
-
-                    int32(gmt_unix_time()), random_bytes(28), /* Random */
-
-                    0, /* Length of Session Id */
-
-                    int16(2), /* Bytes in Cipher Suites */
-                    int16(0xC02F), // TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA
-
-                    1, /* Number of compression methods */
-                    0 /* Compression method */
-            ));
+//            write(out, bytes(
+//                    22 /* Content Type = Handshake */,
+//                    3, 3, /* Protocol Version = TLS v 1.2*/
+//                    int16(45 /* TBD */), /* Length*//*
+//
+//                    *//* -------------- Handshake Message ----------- */
+//                    1, /* Handshake type = ClientHello*/
+//                    int24(41 /* TBD */), /* Handshake message data length */
+//
+//                    /* Client Hello */
+//                    3, 3, /* Protocol Version = TLS v 1.2*/
+//
+//                    int32(gmt_unix_time()), random_bytes(28), /* Random */
+//
+//                    0, /* Length of Session Id */
+//
+//                    int16(2), /* Bytes in Cipher Suites */
+//                    int16(0xC02F), // TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA
+//
+//                    1, /* Number of compression methods */
+//                    0 /* Compression method */
+//            ));
 
             dump(in);
         });
@@ -243,7 +244,7 @@ public class SslTest {
                 System.out.print(" ");
             }
 
-            System.out.print(hex(value));
+            System.out.print(Hex.toHex((byte) value));
 
             charsRead++;
 
@@ -263,19 +264,6 @@ public class SslTest {
         }
     }
 
-    private static byte fromHex(String hex) {
-        return Byte.parseByte(hex, 16);
-    }
-
-    private static String hex(int byteValue) {
-        int intVal = byteValue & 0xFF;
-        String hexValue = Integer.toHexString(intVal);
-        if (intVal < 16) {
-            hexValue = "0" + hexValue;
-        }
-
-        return hexValue;
-    }
 
     private interface SocketIOConsumer {
         void consume(InputStream is, OutputStream os) throws IOException;

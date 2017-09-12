@@ -5,6 +5,7 @@ import crypt.ssl.messages.TlsEnum;
 import lombok.Getter;
 
 @Getter
+@Size(1)
 public enum HandshakeType implements TlsEnum {
 
     //@formatter:off
@@ -20,7 +21,6 @@ public enum HandshakeType implements TlsEnum {
     CLIENT_KEY_EXCHANGE (16 /* 0x10 */),
     FINISHED            (20 /* 0x14 */);
 
-    @Size(1)
     private final int value;
 
     HandshakeType(int value) {

@@ -3,6 +3,7 @@ package crypt.ssl.messages;
 import lombok.Getter;
 
 @Getter
+@Size(1)
 public enum ContentType implements TlsEnum {
 
     //@formatter:off
@@ -12,7 +13,6 @@ public enum ContentType implements TlsEnum {
     HANDSHAKE         (22 /* 0x16 */),
     APPLICATION_DATA  (23 /* 0x17 */);
 
-    @Size(1)
     private final int value;
 
     ContentType(int value) {

@@ -1,17 +1,44 @@
 package crypt.ssl.messages.handshake;
 
-import lombok.AllArgsConstructor;
+import crypt.ssl.messages.*;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.List;
 
 @Getter
 @Setter
-@AllArgsConstructor
 public class ClientHello extends HandshakeMessage {
 
-    @Override
-    public int getLength() {
-        return 0;
+    private ProtocolVersion clientVersion;
+    private RandomValue random;
+    private SessionId sessionId;
+
+    @VarLength(2)
+    private List<CipherSuite> cipherSuites;
+
+    @VarLength(1)
+    private List<CompressionMethod> compressionMethods;
+
+    private List<Extension> extensions;
+
+    public ClientHello() {
+        super(HandshakeType.CLIENT_HELLO);
+    }
+
+    public ClientHello(ProtocolVersion clientVersion,
+                       RandomValue random,
+                       SessionId sessionId,
+                       List<CipherSuite> cipherSuites,
+                       List<CompressionMethod> compressionMethods,
+                       List<Extension> extensions) {
+        super(HandshakeType.CLIENT_HELLO);
+
+        this.clientVersion = clientVersion;
+        this.random = random;
+        this.sessionId = sessionId;
+        this.cipherSuites = cipherSuites;
+        this.compressionMethods = compressionMethods;
+        this.extensions = extensions;
     }
 }
