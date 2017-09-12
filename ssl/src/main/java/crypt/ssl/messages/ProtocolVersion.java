@@ -3,21 +3,25 @@ package crypt.ssl.messages;
 import lombok.Getter;
 
 @Getter
-public enum ProtocolVersion {
+public enum ProtocolVersion implements TlsEnum {
 
     SSLv30(3, 0),
     TLSv10(3, 1),
     TLSv11(3, 2),
     TLSv12(3, 3);
 
-    @Size(1)
-    private final int minor;
+    @Size(2)
+    private final int value;
 
-    @Size(1)
-    private final int major;
+    ProtocolVersion(int major, int minor) {
+        this.value = (major << 8) | minor;
+    }
 
-    ProtocolVersion(int minor, int major) {
-        this.minor = minor;
-        this.major = major;
+    public int getMajor() {
+        return value >> 8;
+    }
+
+    public int getMinor() {
+        return value & 0xFF;
     }
 }

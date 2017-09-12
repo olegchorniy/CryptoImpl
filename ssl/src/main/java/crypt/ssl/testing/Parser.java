@@ -1,4 +1,4 @@
-package crypt.ssl.utils;
+package crypt.ssl.testing;
 
 import java.util.regex.Pattern;
 

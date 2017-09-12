@@ -1,4 +1,4 @@
-package crypt.ssl;
+package crypt.ssl.testing;
 
 import org.bouncycastle.asn1.x509.Certificate;
 import org.bouncycastle.crypto.tls.*;
