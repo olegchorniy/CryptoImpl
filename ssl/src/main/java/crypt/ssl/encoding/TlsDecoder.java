@@ -4,6 +4,7 @@ import crypt.ssl.messages.*;
 import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.alert.AlertDescription;
 import crypt.ssl.messages.alert.AlertLevel;
+import crypt.ssl.messages.handshake.CertificateMessage;
 import crypt.ssl.messages.handshake.HandshakeMessage;
 import crypt.ssl.messages.handshake.HandshakeType;
 import crypt.ssl.messages.handshake.ServerHello;
@@ -13,8 +14,11 @@ import crypt.ssl.utils.IO;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 
 public abstract class TlsDecoder {
@@ -43,10 +47,20 @@ public abstract class TlsDecoder {
             case ALERT:
                 return singletonList(readAlert(recordBody));
             case HANDSHAKE:
-                return singletonList(readHandshake(recordBody));
-            default:
-                throw new IllegalStateException("Other TLS messages not supported");
+
+                List<TlsMessage> messages = new ArrayList<>();
+
+                while (recordBody.hasRemaining()) {
+                    messages.add(readHandshake(recordBody));
+                }
+
+                return messages;
         }
+
+        //TODO: uncomment
+        //throw new IllegalStateException(type + "Other TLS messages not supported");
+        System.err.println(type + " TLS message type is not supported");
+        return emptyList();
     }
 
     private static Alert readAlert(ByteBuffer source) {
@@ -59,24 +73,28 @@ public abstract class TlsDecoder {
     private static HandshakeMessage readHandshake(ByteBuffer source) {
         HandshakeType type = IO.readEnum(source, HandshakeType.class);
         int length = IO.readInt24(source);
+        ByteBuffer handshakeBuffer = IO.readAsBuffer(source, length);
 
         switch (type) {
             case SERVER_HELLO:
-                return readServerHello(length, source);
-            default:
-                throw new IllegalStateException("Other handshake messages not supported");
+                return readServerHello(handshakeBuffer);
+            case CERTIFICATE:
+                return readCertificate(handshakeBuffer);
         }
+
+        //TODO: uncomment
+        //throw new IllegalStateException(type + " handshake message type is not supported for now");
+        System.err.println(type + " handshake message type is not supported for now");
+        return null;
     }
 
-    private static ServerHello readServerHello(int length, ByteBuffer source) {
+    private static ServerHello readServerHello(ByteBuffer source) {
         ProtocolVersion serverVersion = IO.readEnum(source, ProtocolVersion.class);
         RandomValue randomValue = readRandomValue(source);
         SessionId sessionId = readSessionId(source);
         CipherSuite cipherSuite = IO.readEnum(source, CipherSuite.class);
         CompressionMethod compressionMethod = IO.readEnum(source, CompressionMethod.class);
-
-        //TODO: Hmm ... How to determine presence of extensions ? ...
-        List<Extension> extensions = null;
+        List<Extension> extensions = readExtensions(source);
 
         return new ServerHello(
                 serverVersion,
@@ -86,6 +104,23 @@ public abstract class TlsDecoder {
                 compressionMethod,
                 extensions
         );
+    }
+
+    private static CertificateMessage readCertificate(ByteBuffer source) {
+
+        int certificatesLength = IO.readInt24(source);
+        List<ASN1Certificate> certificates = new ArrayList<>();
+
+        while (certificatesLength > 0) {
+            ASN1Certificate certificate = readAsn1Certificate(source);
+
+            certificates.add(certificate);
+
+            // subtract 3 bytes for certificate length and the length of the certificate itself
+            certificatesLength = certificatesLength - 3 - certificate.getContent().length;
+        }
+
+        return new CertificateMessage(certificates);
     }
 
     private static RandomValue readRandomValue(ByteBuffer source) {
@@ -106,9 +141,36 @@ public abstract class TlsDecoder {
         return new SessionId(sessionIdBytes);
     }
 
+    private static List<Extension> readExtensions(ByteBuffer source) {
+        List<Extension> extensions = new ArrayList<>();
+
+        while (source.hasRemaining()) {
+            extensions.add(readExtension(source));
+        }
+
+        return Collections.unmodifiableList(extensions);
+    }
+
+    private static Extension readExtension(ByteBuffer source) {
+        int type = IO.readInt16(source);
+        int length = IO.readInt16(source);
+        byte[] data = (length == 0) ? EMPTY : IO.readBytes(source, length);
+
+        return new Extension(type, data);
+    }
+
+    private static ASN1Certificate readAsn1Certificate(ByteBuffer source) {
+        //certificate length cannot be 0
+        int certificateLength = IO.readInt24(source);
+        byte[] certificateContent = IO.readBytes(source, certificateLength);
+
+        return new ASN1Certificate(certificateContent);
+    }
+
     private static void checkBufferConsumed(ByteBuffer buffer) {
         if (buffer.hasRemaining()) {
-            String dump = Dumper.dumpToString(buffer);
+            String dump = Dumper.dumpToString(new Dumper().setLeftIndent(4), buffer);
+
             throw new IllegalStateException("Message has been read, but not all the data consumed. [\n" + dump + "]");
         }
     }

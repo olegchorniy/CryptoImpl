@@ -1,40 +1,45 @@
 package crypt.ssl.utils;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public abstract class Dumper {
+public class Dumper {
 
     private static final int OFFSET_BYTES = 2;
     private static final int OFFSET_WIDTH = OFFSET_BYTES * 2;
 
-    private Dumper() {
+    public static final int BYTES_PER_ROW_DEFAULT = 16;
+
+    private int bytesPerRow = BYTES_PER_ROW_DEFAULT;
+    private int leftIndent = 0;
+    private Appendable out = System.out;
+
+    public Dumper() {
     }
 
-    public static String dumpToString(ByteBuffer buffer) {
-        StringBuilder collector = new StringBuilder();
-
-        try {
-            dump(collector, buffer);
-        } catch (IOException ignore) {
-        }
-
-        return collector.toString();
+    public Dumper setBytesPerRow(int bytesPerRow) {
+        this.bytesPerRow = bytesPerRow;
+        return this;
     }
 
-    public static void dump(ByteBuffer buffer) throws IOException {
-        dump(System.out, buffer, 16);
+    public Dumper setLeftIndent(int leftIndent) {
+        this.leftIndent = leftIndent;
+        return this;
     }
 
-    public static void dump(Appendable out, ByteBuffer buffer) throws IOException {
-        dump(out, buffer, 16);
+    public Dumper setOut(Appendable out) {
+        this.out = out;
+        return this;
     }
 
-    public static void dump(Appendable out, ByteBuffer buffer, int bytesPerRow) throws IOException {
+    public void dumpBuffer(ByteBuffer buffer) throws IOException {
+        String indent = (leftIndent == 0) ? "" : StringUtils.repeat(' ', leftIndent);
 
         for (int offset = 0; buffer.hasRemaining(); offset += bytesPerRow) {
 
-            out.append(Hex.toHex(offset, OFFSET_WIDTH)).append(":");
+            out.append(indent).append(Hex.toHex(offset, OFFSET_WIDTH)).append(":");
 
             for (int i = 0; i < bytesPerRow && buffer.hasRemaining(); i++) {
                 out.append(" ").append(Hex.toHex(buffer.get()));
@@ -44,5 +49,36 @@ public abstract class Dumper {
         }
 
         buffer.rewind();
+    }
+
+    public static String dumpToString(ByteBuffer buffer) {
+        return dumpToString(new Dumper(), buffer);
+    }
+
+    public static String dumpToString(Dumper dumper, ByteBuffer buffer) {
+        StringBuilder collector = new StringBuilder();
+
+        try {
+            dumper.setOut(collector);
+            dumper.dumpBuffer(buffer);
+        } catch (IOException ignore) {
+        }
+
+        return collector.toString();
+    }
+
+    public static void dump(ByteBuffer buffer) throws IOException {
+        new Dumper().dumpBuffer(buffer);
+    }
+
+    public static void dump(Appendable out, ByteBuffer buffer) throws IOException {
+        new Dumper().setOut(out).dumpBuffer(buffer);
+    }
+
+    public static void dump(Appendable out, ByteBuffer buffer, int bytesPerRow) throws IOException {
+        new Dumper()
+                .setOut(out)
+                .setBytesPerRow(bytesPerRow)
+                .dumpBuffer(buffer);
     }
 }

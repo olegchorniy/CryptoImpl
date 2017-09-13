@@ -5,8 +5,10 @@ import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 public class IOTest {
 
@@ -26,5 +28,27 @@ public class IOTest {
         IO.writeInt(bos, value, bytes);
 
         return bos.toByteArray();
+    }
+
+    @Test
+    public void readIntFromByteBufferTest() {
+        //@formatter:off
+        byte[] testArray = {0x04, 0x03, 0x02, 0x01};
+
+        assertEquals(0x04,       IO.readInt8(ByteBuffer.wrap(testArray)));
+        assertEquals(0x0403,     IO.readInt16(ByteBuffer.wrap(testArray)));
+        assertEquals(0x040302,   IO.readInt24(ByteBuffer.wrap(testArray)));
+        assertEquals(0x04030201, IO.readInt32(ByteBuffer.wrap(testArray)));
+        //@formatter:on
+    }
+
+    @Test
+    public void readBytesTest() {
+        byte[] testArray = {0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01};
+
+        ByteBuffer srcBuffer = ByteBuffer.wrap(testArray);
+
+        assertArrayEquals(new byte[]{0x07, 0x06, 0x05}, IO.readBytes(srcBuffer, 3));
+        assertEquals(4, srcBuffer.remaining());
     }
 }

@@ -1,5 +1,11 @@
 package crypt.ssl;
 
+import crypt.ssl.encoding.TlsDecoder;
+import crypt.ssl.messages.TlsMessage;
+import crypt.ssl.messages.TlsRecord;
+import crypt.ssl.messages.handshake.CertificateMessage;
+import crypt.ssl.testing.RSAKeyDecoding;
+import crypt.ssl.utils.CertificateDecoder;
 import crypt.ssl.utils.Hex;
 import org.bouncycastle.crypto.tls.*;
 
@@ -12,13 +18,14 @@ import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Random;
 
 public class SslTest {
 
     public static void main(String[] args) throws IOException, CertificateException {
         //sslPretendingServer();
-        //sslClient();
+        sslClient();
     }
 
     public static void sslPretendingServer() throws IOException {
@@ -35,7 +42,7 @@ public class SslTest {
         }
     }
 
-    public static void sslClient() throws IOException {
+    public static void bcSslClient() throws IOException {
         String host = "rutracker.org";
         int port = 443;
         String path = "/forum/index.php";
@@ -59,31 +66,51 @@ public class SslTest {
             doSimpleHttpRequest(host, path, tls.getOutputStream(), tls.getInputStream());
 
             tls.close();
+        });
+    }
 
-//            write(out, bytes(
-//                    22 /* Content Type = Handshake */,
-//                    3, 3, /* Protocol Version = TLS v 1.2*/
-//                    int16(45 /* TBD */), /* Length*//*
-//
-//                    *//* -------------- Handshake Message ----------- */
-//                    1, /* Handshake type = ClientHello*/
-//                    int24(41 /* TBD */), /* Handshake message data length */
-//
-//                    /* Client Hello */
-//                    3, 3, /* Protocol Version = TLS v 1.2*/
-//
-//                    int32(gmt_unix_time()), random_bytes(28), /* Random */
-//
-//                    0, /* Length of Session Id */
-//
-//                    int16(2), /* Bytes in Cipher Suites */
-//                    int16(0xC02F), // TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA
-//
-//                    1, /* Number of compression methods */
-//                    0 /* Compression method */
-//            ));
+    public static void sslClient() throws IOException {
+        String host = "localhost";
+        int port = 8090;
+        String path = "/test";
 
-            dump(in);
+        socket(host, port, (in, out) -> {
+
+            write(out, bytes(
+                    22 /* Content Type = Handshake */,
+                    3, 3, /* Protocol Version = TLS v 1.2*/
+                    int16(45 /* TBD */), /* Length*//*
+
+                    *//* -------------- Handshake Message ----------- */
+                    1, /* Handshake type = ClientHello*/
+                    int24(41 /* TBD */), /* Handshake message data length */
+
+                    /* Client Hello */
+                    3, 3, /* Protocol Version = TLS v 1.2*/
+
+                    int32(gmt_unix_time()), random_bytes(28), /* Random */
+
+                    0, /* Length of Session Id */
+
+                    int16(2), /* Bytes in Cipher Suites */
+                    int16(0xC02F), // TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA
+
+                    1, /* Number of compression methods */
+                    0 /* Compression method */
+            ));
+
+            //dump(in);
+
+            TlsRecord record = TlsDecoder.readRecord(in);
+
+            List<TlsMessage> messages = record.getMessages();
+            CertificateMessage certificateMessage = (CertificateMessage) messages.get(1);
+
+            try {
+                System.out.println(CertificateDecoder.decodeCertificate(certificateMessage.getCertificates().get(0).getContent()));
+            } catch (CertificateException e) {
+                e.printStackTrace();
+            }
         });
     }
 
@@ -231,7 +258,7 @@ public class SslTest {
     }
 
     public static void dump(InputStream is) throws IOException {
-        dump(is, 20);
+        dump(is, 16);
     }
 
     public static void dump(InputStream is, int charsPerLine) throws IOException {

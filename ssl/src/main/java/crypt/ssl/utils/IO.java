@@ -46,6 +46,10 @@ public abstract class IO {
         }
     }
 
+    public static ByteBuffer readAsBuffer(ByteBuffer source, int length) {
+        return ByteBuffer.wrap(readBytes(source, length));
+    }
+
     public static byte[] readBytes(ByteBuffer source, int length) {
         byte[] bytes = new byte[length];
         source.get(bytes, 0, length);
@@ -68,21 +72,7 @@ public abstract class IO {
     public static int readInt8(InputStream in) throws IOException { return readInt(in, 1);}
     public static int readInt16(InputStream in) throws IOException { return readInt(in, 2);}
     public static int readInt32(InputStream in) throws IOException { return readInt(in, 4);}
-
-    //TODO: probably reimplement without using of loop
-    public static int readInt8(ByteBuffer buffer) { return readInt(buffer, 1);}
-    public static int readInt24(ByteBuffer buffer) { return readInt(buffer, 3);}
     // @formatter:on
-
-    public static int readInt(ByteBuffer buffer, int byteSize) {
-        int value = 0;
-
-        for (int byteNum = byteSize - 1; byteNum >= 0; byteNum--) {
-            value |= (buffer.get() << (byteNum * Byte.SIZE));
-        }
-
-        return value;
-    }
 
     public static int readInt(InputStream in, int byteSize) throws IOException {
         int value = 0;
@@ -95,6 +85,40 @@ public abstract class IO {
         }
 
         return value;
+    }
+
+    public static int readInt8(ByteBuffer buffer) {
+        return buffer.get() & 0xFF;
+    }
+
+    public static int readInt16(ByteBuffer buffer) {
+        return buffer.getShort() & 0xFFFF;
+    }
+
+    public static int readInt24(ByteBuffer buffer) {
+        return (readInt8(buffer) << 16) | readInt16(buffer);
+    }
+
+    public static int readInt32(ByteBuffer buffer) {
+        return buffer.getInt();
+    }
+
+    public static int readInt(ByteBuffer buffer, int byteSize) {
+        switch (byteSize) {
+            case 1:
+                return readInt8(buffer);
+            case 2:
+                return readInt16(buffer);
+            case 3:
+                return readInt24(buffer);
+            case 4:
+                return readInt32(buffer);
+        }
+
+        throw new IllegalArgumentException(
+                "Illegal value of int size: \"" + byteSize + "\". " +
+                        "Value should be between 1 and 4"
+        );
     }
 
     public static byte checkedReadByte(InputStream in) throws IOException {
