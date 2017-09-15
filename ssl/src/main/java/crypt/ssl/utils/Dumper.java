@@ -67,8 +67,20 @@ public class Dumper {
         return collector.toString();
     }
 
-    public static void dump(ByteBuffer buffer) throws IOException {
-        new Dumper().dumpBuffer(buffer);
+    public static void dumpStderr(ByteBuffer buffer) {
+        try {
+            new Dumper().setOut(System.err).dumpBuffer(buffer);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    public static void dump(ByteBuffer buffer) {
+        try {
+            new Dumper().dumpBuffer(buffer);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     }
 
     public static void dump(Appendable out, ByteBuffer buffer) throws IOException {

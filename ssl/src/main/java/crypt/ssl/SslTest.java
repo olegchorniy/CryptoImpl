@@ -3,9 +3,7 @@ package crypt.ssl;
 import crypt.ssl.encoding.TlsDecoder;
 import crypt.ssl.messages.TlsMessage;
 import crypt.ssl.messages.TlsRecord;
-import crypt.ssl.messages.handshake.CertificateMessage;
-import crypt.ssl.testing.RSAKeyDecoding;
-import crypt.ssl.utils.CertificateDecoder;
+import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.utils.Hex;
 import org.bouncycastle.crypto.tls.*;
 
@@ -21,11 +19,14 @@ import java.util.Date;
 import java.util.List;
 import java.util.Random;
 
+import static org.bouncycastle.crypto.tls.CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
+
 public class SslTest {
 
     public static void main(String[] args) throws IOException, CertificateException {
         //sslPretendingServer();
-        sslClient();
+        //sslClient();
+        bcSslClient();
     }
 
     public static void sslPretendingServer() throws IOException {
@@ -52,6 +53,13 @@ public class SslTest {
             TlsClientProtocol tls = new TlsClientProtocol(in, out, new SecureRandom());
 
             tls.connect(new DefaultTlsClient() {
+
+                @Override
+                public int[] getCipherSuites() {
+                    return new int[]{
+                            TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+                    };
+                }
 
                 @Override
                 public TlsAuthentication getAuthentication() throws IOException {
@@ -93,7 +101,7 @@ public class SslTest {
                     0, /* Length of Session Id */
 
                     int16(2), /* Bytes in Cipher Suites */
-                    int16(0xC02F), // TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA
+                    int16(CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256.getValue()),
 
                     1, /* Number of compression methods */
                     0 /* Compression method */
@@ -104,14 +112,25 @@ public class SslTest {
             TlsRecord record = TlsDecoder.readRecord(in);
 
             List<TlsMessage> messages = record.getMessages();
-            CertificateMessage certificateMessage = (CertificateMessage) messages.get(1);
 
-            try {
-                System.out.println(CertificateDecoder.decodeCertificate(certificateMessage.getCertificates().get(0).getContent()));
-            } catch (CertificateException e) {
-                e.printStackTrace();
-            }
+            checkAlert(messages);
         });
+    }
+
+    private static boolean checkAlert(List<TlsMessage> messages) {
+        if (messages.size() != 1) {
+            return false;
+        }
+
+        TlsMessage tlsMessage = messages.get(0);
+        if (!(tlsMessage instanceof Alert)) {
+            return false;
+        }
+
+        Alert alert = (Alert) tlsMessage;
+        System.out.format("Alert:%n\tlevel: %s%n\tdescription: %s%n", alert.getLevel(), alert.getDescription());
+
+        return true;
     }
 
     public static int gmt_unix_time() {

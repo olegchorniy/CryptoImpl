@@ -8,13 +8,22 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 
 public abstract class IO {
 
     private IO() {
     }
 
+    /* -------------------------------------------------------- */
     /* --------------- Enum related IO methods ---------------- */
+    /* -------------------------------------------------------- */
+
+    public static <E extends Enum<E> & TlsEnum> void writeEnumConstants(OutputStream out, Collection<E> constants) throws IOException {
+        for (E constant : constants) {
+            writeEnum(out, constant);
+        }
+    }
 
     public static <E extends Enum<E> & TlsEnum> void writeEnum(OutputStream out, E constant) throws IOException {
         int size = TlsEnumUtils.getSize(constant.getDeclaringClass());
@@ -37,6 +46,18 @@ public abstract class IO {
         return TlsEnumUtils.getEnumConstant(enumClass, binValue);
     }
 
+
+    /* --------------------------------------------------- */
+    /* ---------------- Writing methods ------------------ */
+    /* --------------------------------------------------- */
+
+    // @formatter:off
+    public static void writeInt8(OutputStream out, int value) throws IOException { writeInt(out, value, 1); }
+    public static void writeInt16(OutputStream out, int value) throws IOException { writeInt(out, value, 2); }
+    public static void writeInt24(OutputStream out, int value) throws IOException { writeInt(out, value, 3); }
+    public static void writeInt32(OutputStream out, int value) throws IOException { writeInt(out, value, 4); }
+    // @formatter:on
+
     public static void writeInt(OutputStream out, int value, int byteSize) throws IOException {
         for (int byteNum = byteSize - 1; byteNum >= 0; byteNum--) {
             int shift = byteNum * Byte.SIZE;
@@ -45,6 +66,14 @@ public abstract class IO {
             out.write(byteVal);
         }
     }
+
+    public static void writeBytes(OutputStream out, byte[] bytes) throws IOException {
+        out.write(bytes);
+    }
+
+    /* --------------------------------------------------- */
+    /* ---------------- Reading methods ------------------ */
+    /* --------------------------------------------------- */
 
     public static ByteBuffer readAsBuffer(ByteBuffer source, int length) {
         return ByteBuffer.wrap(readBytes(source, length));

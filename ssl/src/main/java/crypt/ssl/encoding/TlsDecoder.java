@@ -1,13 +1,11 @@
 package crypt.ssl.encoding;
 
+import crypt.ssl.CipherSuite;
 import crypt.ssl.messages.*;
 import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.alert.AlertDescription;
 import crypt.ssl.messages.alert.AlertLevel;
-import crypt.ssl.messages.handshake.CertificateMessage;
-import crypt.ssl.messages.handshake.HandshakeMessage;
-import crypt.ssl.messages.handshake.HandshakeType;
-import crypt.ssl.messages.handshake.ServerHello;
+import crypt.ssl.messages.handshake.*;
 import crypt.ssl.utils.Dumper;
 import crypt.ssl.utils.IO;
 
@@ -15,7 +13,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static java.util.Collections.emptyList;
@@ -80,11 +77,15 @@ public abstract class TlsDecoder {
                 return readServerHello(handshakeBuffer);
             case CERTIFICATE:
                 return readCertificate(handshakeBuffer);
+            case SERVER_HELLO_DONE:
+                return ServerHelloDone.INSTANCE;
         }
 
         //TODO: uncomment
         //throw new IllegalStateException(type + " handshake message type is not supported for now");
         System.err.println(type + " handshake message type is not supported for now");
+        Dumper.dumpStderr(handshakeBuffer);
+
         return null;
     }
 
@@ -94,7 +95,7 @@ public abstract class TlsDecoder {
         SessionId sessionId = readSessionId(source);
         CipherSuite cipherSuite = IO.readEnum(source, CipherSuite.class);
         CompressionMethod compressionMethod = IO.readEnum(source, CompressionMethod.class);
-        List<Extension> extensions = readExtensions(source);
+        Extensions extensions = readExtensions(source);
 
         return new ServerHello(
                 serverVersion,
@@ -141,22 +142,20 @@ public abstract class TlsDecoder {
         return new SessionId(sessionIdBytes);
     }
 
-    private static List<Extension> readExtensions(ByteBuffer source) {
-        List<Extension> extensions = new ArrayList<>();
+    private static Extensions readExtensions(ByteBuffer source) {
+        Extensions extensions = new Extensions();
 
         while (source.hasRemaining()) {
-            extensions.add(readExtension(source));
+            int type = IO.readInt16(source);
+            int length = IO.readInt16(source);
+            byte[] data = (length == 0) ? EMPTY : IO.readBytes(source, length);
+
+            if (extensions.put(type, data) != null) {
+                throw new IllegalStateException(type + " extension is duplicated");
+            }
         }
 
-        return Collections.unmodifiableList(extensions);
-    }
-
-    private static Extension readExtension(ByteBuffer source) {
-        int type = IO.readInt16(source);
-        int length = IO.readInt16(source);
-        byte[] data = (length == 0) ? EMPTY : IO.readBytes(source, length);
-
-        return new Extension(type, data);
+        return extensions;
     }
 
     private static ASN1Certificate readAsn1Certificate(ByteBuffer source) {

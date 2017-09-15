@@ -1,10 +1,9 @@
 package crypt.ssl.messages.handshake;
 
+import crypt.ssl.CipherSuite;
 import crypt.ssl.messages.*;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.List;
 
 @Getter
 @Setter
@@ -15,7 +14,7 @@ public class ServerHello extends HandshakeMessage {
     private SessionId sessionId;
     private CipherSuite cipherSuite;
     private CompressionMethod compressionMethod;
-    private List<Extension> extensions;
+    private Extensions extensions;
 
     public ServerHello() {
         super(HandshakeType.SERVER_HELLO);
@@ -26,7 +25,7 @@ public class ServerHello extends HandshakeMessage {
                        SessionId sessionId,
                        CipherSuite cipherSuite,
                        CompressionMethod compressionMethod,
-                       List<Extension> extensions) {
+                       Extensions extensions) {
 
         super(HandshakeType.SERVER_HELLO);
 

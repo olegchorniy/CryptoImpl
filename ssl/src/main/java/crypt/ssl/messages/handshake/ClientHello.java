@@ -1,5 +1,6 @@
 package crypt.ssl.messages.handshake;
 
+import crypt.ssl.CipherSuite;
 import crypt.ssl.messages.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,7 +21,7 @@ public class ClientHello extends HandshakeMessage {
     @VarLength(1)
     private List<CompressionMethod> compressionMethods;
 
-    private List<Extension> extensions;
+    private Extensions extensions;
 
     public ClientHello() {
         super(HandshakeType.CLIENT_HELLO);
@@ -31,7 +32,7 @@ public class ClientHello extends HandshakeMessage {
                        SessionId sessionId,
                        List<CipherSuite> cipherSuites,
                        List<CompressionMethod> compressionMethods,
-                       List<Extension> extensions) {
+                       Extensions extensions) {
         super(HandshakeType.CLIENT_HELLO);
 
         this.clientVersion = clientVersion;
