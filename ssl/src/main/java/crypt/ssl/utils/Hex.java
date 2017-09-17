@@ -2,6 +2,9 @@ package crypt.ssl.utils;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 public abstract class Hex {
 
     private Hex() {
@@ -10,14 +13,25 @@ public abstract class Hex {
     public static byte fromHex(String hex) {
         int value = Integer.parseInt(hex, 16);
         if (value < 0 || value > 255) {
-            throw new NumberFormatException("Value out of range. Value:\"" + hex + "\"");
+            throw new NumberFormatException("Value is out of range. Value:\"" + hex + "\"");
         }
 
         return (byte) value;
     }
 
+    public static String toHex(byte[] values) {
+        return IntStream.range(0, values.length)
+                .mapToObj(idx -> values[idx])
+                .map(Hex::toHex)
+                .collect(Collectors.joining(" "));
+    }
+
     public static String toHex(byte value) {
         return toHex(value & 0xFF, 2);
+    }
+
+    public static String toHex16(int value) {
+        return toHex(value & 0xFFFF, 4);
     }
 
     public static String toHex(int value, int targetLength) {

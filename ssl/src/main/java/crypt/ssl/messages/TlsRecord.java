@@ -5,8 +5,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.List;
-
 @Getter
 @Setter
 @AllArgsConstructor
@@ -15,5 +13,5 @@ public class TlsRecord {
 
     private ContentType type;
     private ProtocolVersion version;
-    private List<TlsMessage> messages;
+    private byte[] plainText;
 }

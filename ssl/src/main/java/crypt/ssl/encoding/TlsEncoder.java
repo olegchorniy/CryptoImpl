@@ -19,10 +19,6 @@ public abstract class TlsEncoder {
     public static void writeRecord(OutputStream out, TlsRecord record) throws IOException {
         IO.writeEnum(out, record.getType());
         IO.writeEnum(out, record.getVersion());
-
-        for (TlsMessage message : record.getMessages()) {
-
-        }
     }
 
     public static void writeMessage(OutputStream out, ContentType type, TlsMessage message) throws IOException {
@@ -62,7 +58,6 @@ public abstract class TlsEncoder {
     }
 
     private static void writeRandom(OutputStream out, RandomValue random) throws IOException {
-        IO.writeInt32(out, random.getGmtUnixTime());
         IO.writeBytes(out, random.getRandomBytes());
     }
 

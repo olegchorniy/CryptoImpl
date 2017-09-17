@@ -2,6 +2,7 @@ package crypt.ssl.encoding;
 
 import crypt.ssl.CipherSuite;
 import crypt.ssl.messages.*;
+import crypt.ssl.messages.Extensions.ExtensionsBuilder;
 import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.alert.AlertDescription;
 import crypt.ssl.messages.alert.AlertLevel;
@@ -25,7 +26,7 @@ public abstract class TlsDecoder {
     private TlsDecoder() {
     }
 
-    public static TlsRecord readRecord(InputStream in) throws IOException {
+    /*public static TlsRecord readRecord(InputStream in) throws IOException {
         ContentType type = IO.readEnum(in, ContentType.class);
         ProtocolVersion version = IO.readEnum(in, ProtocolVersion.class);
 
@@ -37,7 +38,7 @@ public abstract class TlsDecoder {
         checkBufferConsumed(recordBody);
 
         return new TlsRecord(type, version, messages);
-    }
+    }*/
 
     private static List<TlsMessage> readMessages(ByteBuffer recordBody, ContentType type) {
         switch (type) {
@@ -84,7 +85,7 @@ public abstract class TlsDecoder {
         //TODO: uncomment
         //throw new IllegalStateException(type + " handshake message type is not supported for now");
         System.err.println(type + " handshake message type is not supported for now");
-        Dumper.dumpStderr(handshakeBuffer);
+        Dumper.dumpToStderr(handshakeBuffer);
 
         return null;
     }
@@ -125,10 +126,9 @@ public abstract class TlsDecoder {
     }
 
     private static RandomValue readRandomValue(ByteBuffer source) {
-        int gmtUnitTime = source.getInt();
-        byte[] randomBytes = IO.readBytes(source, 28);
+        byte[] randomBytes = IO.readBytes(source, 32);
 
-        return new RandomValue(gmtUnitTime, randomBytes);
+        return new RandomValue(randomBytes);
     }
 
     private static SessionId readSessionId(ByteBuffer source) {
@@ -143,19 +143,24 @@ public abstract class TlsDecoder {
     }
 
     private static Extensions readExtensions(ByteBuffer source) {
-        Extensions extensions = new Extensions();
+        if (!source.hasRemaining()) {
+            return Extensions.empty();
+        }
+
+        ExtensionsBuilder builder = Extensions.builder();
+
+        // skip length as we don't need it in current implementation
+        IO.readInt16(source);
 
         while (source.hasRemaining()) {
             int type = IO.readInt16(source);
             int length = IO.readInt16(source);
             byte[] data = (length == 0) ? EMPTY : IO.readBytes(source, length);
 
-            if (extensions.put(type, data) != null) {
-                throw new IllegalStateException(type + " extension is duplicated");
-            }
+            builder.add(type, data);
         }
 
-        return extensions;
+        return builder.build();
     }
 
     private static ASN1Certificate readAsn1Certificate(ByteBuffer source) {
@@ -168,7 +173,7 @@ public abstract class TlsDecoder {
 
     private static void checkBufferConsumed(ByteBuffer buffer) {
         if (buffer.hasRemaining()) {
-            String dump = Dumper.dumpToString(new Dumper().setLeftIndent(4), buffer);
+            String dump = Dumper.dumpToString(4, buffer);
 
             throw new IllegalStateException("Message has been read, but not all the data consumed. [\n" + dump + "]");
         }

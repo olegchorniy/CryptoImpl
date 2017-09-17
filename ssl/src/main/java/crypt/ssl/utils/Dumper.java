@@ -34,7 +34,7 @@ public class Dumper {
         return this;
     }
 
-    public void dumpBuffer(ByteBuffer buffer) throws IOException {
+    public void dump(ByteBuffer buffer) throws IOException {
         String indent = (leftIndent == 0) ? "" : StringUtils.repeat(' ', leftIndent);
 
         for (int offset = 0; buffer.hasRemaining(); offset += bytesPerRow) {
@@ -51,46 +51,52 @@ public class Dumper {
         buffer.rewind();
     }
 
+    /* -------------------------------------------------------------------------------- */
+    /* ------------ Convenient methods for the most common usage patterns. ------------ */
+    /* -------------------------------------------------------------------------------- */
+
     public static String dumpToString(ByteBuffer buffer) {
-        return dumpToString(new Dumper(), buffer);
+        return dumpToString(0, buffer);
     }
 
-    public static String dumpToString(Dumper dumper, ByteBuffer buffer) {
+    public static String dumpToString(int leftIndent, ByteBuffer buffer) {
         StringBuilder collector = new StringBuilder();
 
         try {
-            dumper.setOut(collector);
-            dumper.dumpBuffer(buffer);
+            new Dumper()
+                    .setLeftIndent(leftIndent)
+                    .setOut(collector)
+                    .dump(buffer);
         } catch (IOException ignore) {
         }
 
         return collector.toString();
     }
 
-    public static void dumpStderr(ByteBuffer buffer) {
+    public static void dumpToStderr(ByteBuffer buffer) {
         try {
-            new Dumper().setOut(System.err).dumpBuffer(buffer);
+            new Dumper().setOut(System.err).dump(buffer);
         } catch (IOException ex) {
             ex.printStackTrace();
         }
     }
 
-    public static void dump(ByteBuffer buffer) {
+    public static void dumpToStdout(ByteBuffer buffer) {
         try {
-            new Dumper().dumpBuffer(buffer);
+            new Dumper().dump(buffer);
         } catch (IOException ex) {
             ex.printStackTrace();
         }
     }
 
-    public static void dump(Appendable out, ByteBuffer buffer) throws IOException {
-        new Dumper().setOut(out).dumpBuffer(buffer);
+    public static void dumpTo(Appendable out, ByteBuffer buffer) throws IOException {
+        new Dumper().setOut(out).dump(buffer);
     }
 
-    public static void dump(Appendable out, ByteBuffer buffer, int bytesPerRow) throws IOException {
+    public static void dumpTo(Appendable out, ByteBuffer buffer, int bytesPerRow) throws IOException {
         new Dumper()
                 .setOut(out)
                 .setBytesPerRow(bytesPerRow)
-                .dumpBuffer(buffer);
+                .dump(buffer);
     }
 }

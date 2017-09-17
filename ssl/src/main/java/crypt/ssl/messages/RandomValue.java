@@ -10,9 +10,6 @@ import lombok.Setter;
 @AllArgsConstructor
 public class RandomValue {
 
-    @Size(4)
-    private int gmtUnixTime;
-
-    @Size(28)
+    @Size(32)
     private byte[] randomBytes;
 }

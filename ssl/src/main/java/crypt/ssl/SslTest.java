@@ -1,8 +1,6 @@
 package crypt.ssl;
 
-import crypt.ssl.encoding.TlsDecoder;
 import crypt.ssl.messages.TlsMessage;
-import crypt.ssl.messages.TlsRecord;
 import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.utils.Hex;
 import org.bouncycastle.crypto.tls.*;
@@ -25,8 +23,8 @@ public class SslTest {
 
     public static void main(String[] args) throws IOException, CertificateException {
         //sslPretendingServer();
-        //sslClient();
-        bcSslClient();
+        sslClient();
+        //bcSslClient();
     }
 
     public static void sslPretendingServer() throws IOException {
@@ -78,8 +76,8 @@ public class SslTest {
     }
 
     public static void sslClient() throws IOException {
-        String host = "localhost";
-        int port = 8090;
+        String host = "habrahabr.ru";
+        int port = 443;
         String path = "/test";
 
         socket(host, port, (in, out) -> {
@@ -87,18 +85,26 @@ public class SslTest {
             write(out, bytes(
                     22 /* Content Type = Handshake */,
                     3, 3, /* Protocol Version = TLS v 1.2*/
-                    int16(45 /* TBD */), /* Length*//*
+                    int16(39 /* TBD */), /* Length*/
 
-                    *//* -------------- Handshake Message ----------- */
+                    /* -------------- Handshake Message ----------- */
                     1, /* Handshake type = ClientHello*/
                     int24(41 /* TBD */), /* Handshake message data length */
 
                     /* Client Hello */
                     3, 3, /* Protocol Version = TLS v 1.2*/
 
-                    int32(gmt_unix_time()), random_bytes(28), /* Random */
+                    random_bytes(32), /* Random */
 
-                    0, /* Length of Session Id */
+                    0 /* Length of Session Id */
+            ));
+
+            write(out, bytes(
+                    22 /* Content Type = Handshake */,
+                    3, 3, /* Protocol Version = TLS v 1.2*/
+                    int16(6 /* TBD */), /* Length*/
+
+                    // Continuation of the previous message ...
 
                     int16(2), /* Bytes in Cipher Suites */
                     int16(CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256.getValue()),
@@ -107,13 +113,7 @@ public class SslTest {
                     0 /* Compression method */
             ));
 
-            //dump(in);
-
-            TlsRecord record = TlsDecoder.readRecord(in);
-
-            List<TlsMessage> messages = record.getMessages();
-
-            checkAlert(messages);
+            dump(in);
         });
     }
 
@@ -185,7 +185,7 @@ public class SslTest {
             }
         }
 
-        //dump(allBytes);
+        //dumpToStdout(allBytes);
 
         return allBytes;
     }
@@ -280,27 +280,27 @@ public class SslTest {
         dump(is, 16);
     }
 
-    public static void dump(InputStream is, int charsPerLine) throws IOException {
+    public static void dump(InputStream is, int bytesPerRow) throws IOException {
         int value;
-        int charsRead = 0;
+        int bytesRead = 0;
 
         while ((value = is.read()) != -1) {
 
-            if (charsRead != 0) {
-                System.out.print(" ");
+            if (bytesRead % bytesPerRow == 0) {
+                System.out.print(Hex.toHex(bytesRead, 6) + ":");
             }
 
-            System.out.print(Hex.toHex((byte) value));
+            System.out.print(" " + Hex.toHex((byte) value));
 
-            charsRead++;
+            bytesRead++;
 
-            if (charsRead == charsPerLine) {
+            if (bytesRead % bytesPerRow == 0) {
                 System.out.println();
-                charsRead = 0;
             }
         }
     }
 
+    //TODO: look for good implementation in sun.misc.HexDumpEncoder
     private static void dumpAscii(InputStream is) throws IOException {
         InputStreamReader reader = new InputStreamReader(is, StandardCharsets.US_ASCII);
         int value;
