@@ -71,6 +71,12 @@ public abstract class IO {
         out.write(bytes);
     }
 
+    public static void writeBytes(OutputStream out, ByteBuffer buffer) throws IOException {
+        while (buffer.hasRemaining()) {
+            out.write(buffer.get());
+        }
+    }
+
     /* --------------------------------------------------- */
     /* ---------------- Reading methods ------------------ */
     /* --------------------------------------------------- */

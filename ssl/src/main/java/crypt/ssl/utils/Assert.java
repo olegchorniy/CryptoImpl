@@ -1,8 +1,14 @@
 package crypt.ssl.utils;
 
+import java.util.Objects;
+
 public abstract class Assert {
 
     private Assert() {
+    }
+
+    public static void assertEquals(Object left, Object right) {
+        assertTrue(Objects.equals(left, right));
     }
 
     public static void assertTrue(boolean expression, String message) {

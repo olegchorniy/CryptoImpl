@@ -1,7 +1,10 @@
 package crypt.ssl.encoding;
 
 import crypt.ssl.CipherSuite;
-import crypt.ssl.messages.*;
+import crypt.ssl.messages.CompressionMethod;
+import crypt.ssl.messages.RandomValue;
+import crypt.ssl.messages.SessionId;
+import crypt.ssl.messages.TlsRecord;
 import crypt.ssl.messages.handshake.ClientHello;
 import crypt.ssl.messages.handshake.HandshakeMessage;
 import crypt.ssl.utils.IO;
@@ -9,6 +12,7 @@ import crypt.ssl.utils.IO;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.List;
 
 public abstract class TlsEncoder {
@@ -19,18 +23,12 @@ public abstract class TlsEncoder {
     public static void writeRecord(OutputStream out, TlsRecord record) throws IOException {
         IO.writeEnum(out, record.getType());
         IO.writeEnum(out, record.getVersion());
+
+        ByteBuffer recordBody = record.getRecordBody();
+
+        IO.writeInt16(out, recordBody.remaining());
+        IO.writeBytes(out, recordBody);
     }
-
-    public static void writeMessage(OutputStream out, ContentType type, TlsMessage message) throws IOException {
-        switch (type) {
-            case HANDSHAKE:
-        }
-
-        //TODO: uncomment
-        //throw new IllegalStateException(type + "Other TLS messages not supported");
-        System.err.println(type + " TLS message type is not supported");
-    }
-
 
     private static void writeHandshake(OutputStream out, HandshakeMessage handshake) throws IOException {
         switch (handshake.getType()) {

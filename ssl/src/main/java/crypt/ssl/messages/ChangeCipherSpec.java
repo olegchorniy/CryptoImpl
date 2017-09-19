@@ -5,15 +5,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.nio.ByteBuffer;
-
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class TlsRecord {
+public class ChangeCipherSpec implements TlsMessage {
 
-    private ContentType type;
-    private ProtocolVersion version;
-    private ByteBuffer recordBody;
+    @Size(1)
+    private int type;
 }

@@ -25,6 +25,9 @@ public abstract class TlsDecoder {
     // level + description = 1 + 1 = 2
     public static final int TLS_ALERT_LENGTH = 2;
 
+    // type = 1 byte
+    public static final int TLS_CHANGE_CIPHER_SPEC_LENGTH = 1;
+
     // handshake type + length = 1 + 3
     public static final int TLS_HANDSHAKE_HEADER_LENGTH = 4;
 
@@ -39,9 +42,10 @@ public abstract class TlsDecoder {
 
         ContentType type = IO.readEnum(header, ContentType.class);
         ProtocolVersion version = IO.readEnum(header, ProtocolVersion.class);
-        int length = IO.readInt16(header);
 
-        byte[] recordBody = IO.readOrNull(in, length);
+        int length = IO.readInt16(header);
+        ByteBuffer recordBody = IO.readOrNullAsBuffer(in, length);
+
         if (recordBody == null) {
             return null;
         }
@@ -75,6 +79,11 @@ public abstract class TlsDecoder {
         AlertDescription description = IO.readEnum(source, AlertDescription.class);
 
         return new Alert(level, description);
+    }
+
+    public static ChangeCipherSpec readChangeCipherSpec(ByteBuffer source) {
+        int type = IO.readInt8(source);
+        return new ChangeCipherSpec(type);
     }
 
     @Deprecated

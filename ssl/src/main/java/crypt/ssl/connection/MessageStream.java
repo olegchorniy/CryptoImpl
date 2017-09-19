@@ -1,10 +1,8 @@
 package crypt.ssl.connection;
 
 import crypt.ssl.encoding.TlsDecoder;
-import crypt.ssl.messages.ApplicationData;
-import crypt.ssl.messages.ContentType;
-import crypt.ssl.messages.TlsMessage;
-import crypt.ssl.messages.TlsRecord;
+import crypt.ssl.encoding.TlsEncoder;
+import crypt.ssl.messages.*;
 import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.handshake.HandshakeMessage;
 import crypt.ssl.messages.handshake.HandshakeType;
@@ -16,13 +14,21 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
-import static crypt.ssl.encoding.TlsDecoder.TLS_ALERT_LENGTH;
-import static crypt.ssl.encoding.TlsDecoder.TLS_HANDSHAKE_HEADER_LENGTH;
+import static crypt.ssl.encoding.TlsDecoder.*;
+import static crypt.ssl.messages.ContentType.APPLICATION_DATA;
+import static java.lang.Math.min;
 
+//TODO: add flushes here or in the TlsConnection
 public class MessageStream {
+
+    public static final int PLAINTEXT_MAX_LENGTH = 1 << 14;
+    public static final int COMPRESSED_MAX_LENGTH = PLAINTEXT_MAX_LENGTH + (1 << 10);
+    public static final int ENCRYPTED_MAX_LENGTH = COMPRESSED_MAX_LENGTH + (1 << 10);
 
     private final InputStream in;
     private final OutputStream out;
+
+    private ProtocolVersion recordVersion;
 
     private final Buffer messagesBuffer = new Buffer();
     private ContentType lastContentType = null;
@@ -30,6 +36,10 @@ public class MessageStream {
     public MessageStream(InputStream in, OutputStream out) {
         this.in = in;
         this.out = out;
+    }
+
+    public void setRecordVersion(ProtocolVersion recordVersion) {
+        this.recordVersion = recordVersion;
     }
 
     public TlsMessage readMessage() throws IOException {
@@ -78,6 +88,8 @@ public class MessageStream {
 
     private TlsMessage tryReadMessageOfType(ContentType type) {
 
+        //TODO: add check of the message length
+
         switch (type) {
             case ALERT:
                 return tryReadAlert();
@@ -85,25 +97,23 @@ public class MessageStream {
             case HANDSHAKE:
                 return tryReadHandshake();
 
-            case APPLICATION_DATA:
-                return tryReadApplicationData();
-
             case CHANGE_CIPHER_SPEC:
-                throw new UnsupportedOperationException();
-        }
+                return tryReadChangeCipherSpec();
 
-        // impossible, as the type cannot be null here
-        return null;
+            default:
+                Assert.assertEquals(type, APPLICATION_DATA);
+
+                return tryReadApplicationData();
+        }
     }
 
     private Alert tryReadAlert() {
-        if (this.messagesBuffer.available() >= TLS_ALERT_LENGTH) {
-            ByteBuffer alertBody = this.messagesBuffer.getBytes(TLS_ALERT_LENGTH);
-
-            return TlsDecoder.readAlert(alertBody);
+        if (this.messagesBuffer.available() < TLS_ALERT_LENGTH) {
+            return null;
         }
 
-        return null;
+        ByteBuffer alertBody = this.messagesBuffer.getBytes(TLS_ALERT_LENGTH);
+        return TlsDecoder.readAlert(alertBody);
     }
 
     private HandshakeMessage tryReadHandshake() {
@@ -138,6 +148,15 @@ public class MessageStream {
         return new ApplicationData(this.messagesBuffer.getBytes());
     }
 
+    private ChangeCipherSpec tryReadChangeCipherSpec() {
+        if (this.messagesBuffer.available() < TLS_CHANGE_CIPHER_SPEC_LENGTH) {
+            return null;
+        }
+
+        ByteBuffer body = this.messagesBuffer.getBytes(TLS_CHANGE_CIPHER_SPEC_LENGTH);
+        return TlsDecoder.readChangeCipherSpec(body);
+    }
+
     private boolean readRecordIntoBuffer() throws IOException {
         TlsRecord record = TlsDecoder.readRecord(in);
         if (record == null) {
@@ -145,7 +164,7 @@ public class MessageStream {
         }
 
         ContentType contentType = record.getType();
-        byte[] recordBody = record.getRecordBody();
+        ByteBuffer recordBody = record.getRecordBody();
 
         checkContentType(contentType);
 
@@ -163,4 +182,14 @@ public class MessageStream {
         }
     }
 
+    public void writeMessage(ContentType type, ByteBuffer data) throws IOException {
+        while (data.hasRemaining()) {
+            int recordLength = min(data.remaining(), COMPRESSED_MAX_LENGTH);
+            ByteBuffer recordData = IO.readAsBuffer(data, recordLength);
+
+            //TODO: add encryption
+
+            TlsEncoder.writeRecord(out, new TlsRecord(type, this.recordVersion, recordData));
+        }
+    }
 }
