@@ -86,15 +86,52 @@ public abstract class IO {
         return bytes;
     }
 
-    public static ByteBuffer readBytes(InputStream in, int length) throws IOException {
-        byte[] bytes = new byte[length];
-        int actuallyRead = in.read(bytes);
-
-        if (actuallyRead != length) {
-            throw TlsExceptions.eofException("Expected " + length + " bytes but only " + actuallyRead + " present");
+    public static ByteBuffer readOrNullAsBuffer(InputStream in, int length) throws IOException {
+        byte[] bytes = readOrNull(in, length);
+        if (bytes == null) {
+            return null;
         }
 
         return ByteBuffer.wrap(bytes);
+    }
+
+    public static ByteBuffer readAsBuffer(InputStream in, int length) throws IOException {
+        return ByteBuffer.wrap(readBytes(in, length));
+    }
+
+    public static byte[] readOrNull(InputStream in, int bytesToRead) throws IOException {
+        byte[] bytes = new byte[bytesToRead];
+
+        int offset = 0;
+        int length = bytesToRead;
+
+        while (length != 0) {
+            int read = in.read(bytes, offset, length);
+
+            if (read == -1) {
+                // EOF reached
+                break;
+            }
+
+            offset += read;
+            length -= read;
+        }
+
+        if (length != 0) {
+            return null;
+        }
+
+        return bytes;
+    }
+
+    public static byte[] readBytes(InputStream in, int bytesToRead) throws IOException {
+        byte[] bytes = readOrNull(in, bytesToRead);
+
+        if (bytes == null) {
+            throw TlsExceptions.eofException("EOF reached before " + bytesToRead + " bytes was read.");
+        }
+
+        return bytes;
     }
 
     // @formatter:off

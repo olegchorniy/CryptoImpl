@@ -27,6 +27,11 @@ public class BufferTest {
         assertEquals(8, buffer.available());
         assertArrayEquals(bytes(0x73, 0x61, 0x62, 0x63), buffer.getBytes(4));
         assertEquals(4, buffer.available());
+
+        buffer.skip(2);
+
+        assertEquals(2, buffer.available());
+        assertArrayEquals(bytes(0x66, 0x67), buffer.getBytes());
     }
 
     private static byte[] bytes(int... values) {

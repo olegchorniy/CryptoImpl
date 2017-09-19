@@ -1,6 +1,7 @@
 package crypt.ssl.encoding;
 
 import crypt.ssl.CipherSuite;
+import crypt.ssl.Constants;
 import crypt.ssl.messages.*;
 import crypt.ssl.messages.Extensions.ExtensionsBuilder;
 import crypt.ssl.messages.alert.Alert;
@@ -16,31 +17,39 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
-
 public abstract class TlsDecoder {
 
-    public static final byte[] EMPTY = new byte[0];
+    //contentType + version + length = 1 + 2 + 2 = 5 bytes
+    public static final int TLS_HEADER_LENGTH = 5;
+
+    // level + description = 1 + 1 = 2
+    public static final int TLS_ALERT_LENGTH = 2;
+
+    // handshake type + length = 1 + 3
+    public static final int TLS_HANDSHAKE_HEADER_LENGTH = 4;
 
     private TlsDecoder() {
     }
 
-    /*public static TlsRecord readRecord(InputStream in) throws IOException {
-        ContentType type = IO.readEnum(in, ContentType.class);
-        ProtocolVersion version = IO.readEnum(in, ProtocolVersion.class);
+    public static TlsRecord readRecord(InputStream in) throws IOException {
+        ByteBuffer header = IO.readOrNullAsBuffer(in, TLS_HEADER_LENGTH);
+        if (header == null) {
+            return null;
+        }
 
-        int length = IO.readInt16(in);
-        ByteBuffer recordBody = IO.readBytes(in, length);
+        ContentType type = IO.readEnum(header, ContentType.class);
+        ProtocolVersion version = IO.readEnum(header, ProtocolVersion.class);
+        int length = IO.readInt16(header);
 
-        List<TlsMessage> messages = readMessages(recordBody, type);
+        byte[] recordBody = IO.readOrNull(in, length);
+        if (recordBody == null) {
+            return null;
+        }
 
-        checkBufferConsumed(recordBody);
+        return new TlsRecord(type, version, recordBody);
+    }
 
-        return new TlsRecord(type, version, messages);
-    }*/
-
-    private static List<TlsMessage> readMessages(ByteBuffer recordBody, ContentType type) {
+    /*private static List<TlsMessage> readMessages(ByteBuffer recordBody, ContentType type) {
         switch (type) {
             case ALERT:
                 return singletonList(readAlert(recordBody));
@@ -59,20 +68,24 @@ public abstract class TlsDecoder {
         //throw new IllegalStateException(type + "Other TLS messages not supported");
         System.err.println(type + " TLS message type is not supported");
         return emptyList();
-    }
+    }*/
 
-    private static Alert readAlert(ByteBuffer source) {
+    public static Alert readAlert(ByteBuffer source) {
         AlertLevel level = IO.readEnum(source, AlertLevel.class);
         AlertDescription description = IO.readEnum(source, AlertDescription.class);
 
         return new Alert(level, description);
     }
 
-    private static HandshakeMessage readHandshake(ByteBuffer source) {
+    public static HandshakeMessage readHandshake(ByteBuffer source) {
         HandshakeType type = IO.readEnum(source, HandshakeType.class);
         int length = IO.readInt24(source);
         ByteBuffer handshakeBuffer = IO.readAsBuffer(source, length);
 
+        return readHandshakeOfType(type, handshakeBuffer);
+    }
+
+    public static HandshakeMessage readHandshakeOfType(HandshakeType type, ByteBuffer handshakeBuffer) {
         switch (type) {
             case SERVER_HELLO:
                 return readServerHello(handshakeBuffer);
@@ -134,7 +147,7 @@ public abstract class TlsDecoder {
     private static SessionId readSessionId(ByteBuffer source) {
         int sessionIdLength = IO.readInt8(source);
         if (sessionIdLength == 0) {
-            return new SessionId(EMPTY);
+            return new SessionId(Constants.EMPTY);
         }
 
         byte[] sessionIdBytes = IO.readBytes(source, sessionIdLength);
@@ -155,7 +168,7 @@ public abstract class TlsDecoder {
         while (source.hasRemaining()) {
             int type = IO.readInt16(source);
             int length = IO.readInt16(source);
-            byte[] data = (length == 0) ? EMPTY : IO.readBytes(source, length);
+            byte[] data = (length == 0) ? Constants.EMPTY : IO.readBytes(source, length);
 
             builder.add(type, data);
         }

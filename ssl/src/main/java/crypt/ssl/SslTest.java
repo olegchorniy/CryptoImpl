@@ -23,8 +23,8 @@ public class SslTest {
 
     public static void main(String[] args) throws IOException, CertificateException {
         //sslPretendingServer();
-        sslClient();
-        //bcSslClient();
+        //sslClient();
+        bcSslClient();
     }
 
     public static void sslPretendingServer() throws IOException {
@@ -42,9 +42,9 @@ public class SslTest {
     }
 
     public static void bcSslClient() throws IOException {
-        String host = "rutracker.org";
-        int port = 443;
-        String path = "/forum/index.php";
+        String host = "localhost";
+        int port = 8090;
+        String path = "/test";
 
         socket(host, port, (in, out) -> {
 

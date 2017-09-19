@@ -1,6 +1,6 @@
 package crypt.ssl.connection;
 
-import crypt.ssl.CommonConstants;
+import crypt.ssl.Constants;
 
 public class Buffer {
 
@@ -12,8 +12,12 @@ public class Buffer {
     }
 
     public void reset() {
-        this.bytes = CommonConstants.EMPTY;
+        this.bytes = Constants.EMPTY;
         this.length = 0;
+    }
+
+    public boolean isEmpty() {
+        return available() == 0;
     }
 
     public int available() {
@@ -40,7 +44,7 @@ public class Buffer {
     public byte[] getBytes() {
         int available = available();
         if (available == 0) {
-            return CommonConstants.EMPTY;
+            return Constants.EMPTY;
         }
 
         byte[] dst = new byte[available];
@@ -68,10 +72,17 @@ public class Buffer {
         this.length -= length;
     }
 
+    public byte[] peekBytes(int length) {
+        byte[] dst = new byte[length];
+        peekBytes(dst, 0, length);
+
+        return dst;
+    }
+
     public byte[] peekBytes() {
         int available = available();
         if (available == 0) {
-            return CommonConstants.EMPTY;
+            return Constants.EMPTY;
         }
 
         byte[] dst = new byte[available];
@@ -88,6 +99,14 @@ public class Buffer {
         checkLength(length);
 
         System.arraycopy(this.bytes, 0, dst, offset, length);
+    }
+
+    public void skip(int amount) {
+        checkLength(amount);
+
+        shiftLeft(amount);
+
+        this.length -= amount;
     }
 
     private void checkLength(int requiredBytes) {

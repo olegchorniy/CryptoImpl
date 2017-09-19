@@ -5,13 +5,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.nio.ByteBuffer;
+
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class TlsRecord {
+public class ApplicationData implements TlsMessage {
 
-    private ContentType type;
-    private ProtocolVersion version;
-    private byte[] recordBody;
+    private ByteBuffer data;
 }
