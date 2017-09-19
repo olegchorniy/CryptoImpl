@@ -5,6 +5,7 @@ import crypt.ssl.messages.CompressionMethod;
 import crypt.ssl.messages.RandomValue;
 import crypt.ssl.messages.SessionId;
 import crypt.ssl.messages.TlsRecord;
+import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.handshake.ClientHello;
 import crypt.ssl.messages.handshake.HandshakeMessage;
 import crypt.ssl.utils.IO;
@@ -66,14 +67,23 @@ public abstract class TlsEncoder {
         IO.writeBytes(out, sessionIdValue);
     }
 
-    private static <T> byte[] writeToArray(Encoder<T> encoder, T obj) throws IOException {
+    public static void writeAlert(OutputStream out, Alert alert) throws IOException {
+        IO.writeEnum(out, alert.getLevel());
+        IO.writeEnum(out, alert.getDescription());
+    }
+
+    public static <T> ByteBuffer writeToBuffer(Encoder<T> encoder, T obj) throws IOException {
+        return ByteBuffer.wrap(writeToArray(encoder, obj));
+    }
+
+    public static <T> byte[] writeToArray(Encoder<T> encoder, T obj) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         encoder.encode(bos, obj);
 
         return bos.toByteArray();
     }
 
-    private interface Encoder<T> {
+    public interface Encoder<T> {
 
         void encode(OutputStream out, T t) throws IOException;
     }
