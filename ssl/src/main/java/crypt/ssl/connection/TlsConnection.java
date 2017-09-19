@@ -6,7 +6,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
-public class SecureConnection implements Connection {
+public class TlsConnection implements Connection {
 
     private Socket socket;
 
