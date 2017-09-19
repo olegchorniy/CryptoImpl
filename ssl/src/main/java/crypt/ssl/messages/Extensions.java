@@ -20,6 +20,11 @@ public class Extensions {
         return table.get(type);
     }
 
+    @Override
+    public String toString() {
+        return table.toString();
+    }
+
     public static Extensions empty() {
         return EMPTY;
     }

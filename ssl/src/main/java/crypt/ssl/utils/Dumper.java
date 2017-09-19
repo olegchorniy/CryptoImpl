@@ -36,19 +36,46 @@ public class Dumper {
 
     public void dump(ByteBuffer buffer) throws IOException {
         String indent = (leftIndent == 0) ? "" : StringUtils.repeat(' ', leftIndent);
+        byte[] row = new byte[bytesPerRow];
 
-        for (int offset = 0; buffer.hasRemaining(); offset += bytesPerRow) {
+        for (int offset = 0; ; offset += bytesPerRow) {
 
+            int availableBytes = Math.min(bytesPerRow, buffer.limit() - buffer.position());
+            if (availableBytes == 0) {
+                break;
+            }
+
+            buffer.get(row, 0, availableBytes);
+
+            // 1. line prefix: hexadecimal counter
             out.append(indent).append(Hex.toHex(offset, OFFSET_WIDTH)).append(":");
 
-            for (int i = 0; i < bytesPerRow && buffer.hasRemaining(); i++) {
-                out.append(" ").append(Hex.toHex(buffer.get()));
+            // 2. hexadecimal values of bytes themselves
+            for (int i = 0; i < availableBytes; i++) {
+                out.append(' ').append(Hex.toHex(row[i]));
+            }
+
+            // 3. line suffix: ascii interpretation of byte values
+
+            // we need to print 3 spaces instead of each missing byte
+            // in a current row + 2 spaces to separate hex and ascii
+            int spaces = (bytesPerRow - availableBytes) * 3 + 2;
+            while (spaces-- > 0) {
+                out.append(' ');
+            }
+
+            for (int i = 0; i < availableBytes; i++) {
+                out.append(ascii(row[i]));
             }
 
             out.append(System.lineSeparator());
         }
 
         buffer.rewind();
+    }
+
+    private static char ascii(byte value) {
+        return (value >= 0x20 && value <= 0x7E) ? (char) value : '.';
     }
 
     /* -------------------------------------------------------------------------------- */

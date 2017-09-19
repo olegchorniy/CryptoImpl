@@ -77,6 +77,7 @@ public abstract class TlsDecoder {
         return new Alert(level, description);
     }
 
+    @Deprecated
     public static HandshakeMessage readHandshake(ByteBuffer source) {
         HandshakeType type = IO.readEnum(source, HandshakeType.class);
         int length = IO.readInt24(source);

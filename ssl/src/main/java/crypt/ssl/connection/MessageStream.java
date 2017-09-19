@@ -8,6 +8,7 @@ import crypt.ssl.messages.TlsRecord;
 import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.handshake.HandshakeMessage;
 import crypt.ssl.messages.handshake.HandshakeType;
+import crypt.ssl.utils.Assert;
 import crypt.ssl.utils.IO;
 
 import java.io.IOException;
@@ -52,16 +53,22 @@ public class MessageStream {
 
     private TlsMessage tryReadMessage() {
         if (this.lastContentType == null) {
+            // buffer should be empty because we either didn't have previous messages
+            // or we should have cleared this field below if the buffer is exhausted
+            Assert.assertTrue(this.messagesBuffer.isEmpty(), "Buffer should be empty");
+
             return null;
         }
 
         TlsMessage message = tryReadMessageOfType(this.lastContentType);
         if (message == null) {
+            // Attempt to read a message from available in the buffer data has failed.
+            // We need to read more data from the underlying stream to reconstruct a message.
             return null;
         }
 
         if (this.messagesBuffer.isEmpty()) {
-            // we are ready to receive messages of the new content type,
+            // we are ready to receive messages of a new content type,
             // probably the same as the last one
             this.lastContentType = null;
         }
@@ -79,11 +86,10 @@ public class MessageStream {
                 return tryReadHandshake();
 
             case APPLICATION_DATA:
-                //TODO: hmmmm....
-                return null;
+                return tryReadApplicationData();
 
             case CHANGE_CIPHER_SPEC:
-                return null;
+                throw new UnsupportedOperationException();
         }
 
         // impossible, as the type cannot be null here
@@ -92,9 +98,9 @@ public class MessageStream {
 
     private Alert tryReadAlert() {
         if (this.messagesBuffer.available() >= TLS_ALERT_LENGTH) {
-            byte[] alertBody = this.messagesBuffer.getBytes(TLS_ALERT_LENGTH);
+            ByteBuffer alertBody = this.messagesBuffer.getBytes(TLS_ALERT_LENGTH);
 
-            return TlsDecoder.readAlert(ByteBuffer.wrap(alertBody));
+            return TlsDecoder.readAlert(alertBody);
         }
 
         return null;
@@ -107,7 +113,7 @@ public class MessageStream {
             return null;
         }
 
-        ByteBuffer header = ByteBuffer.wrap(this.messagesBuffer.peekBytes(TLS_HANDSHAKE_HEADER_LENGTH));
+        ByteBuffer header = this.messagesBuffer.peekBytes(TLS_HANDSHAKE_HEADER_LENGTH);
 
         HandshakeType type = IO.readEnum(header, HandshakeType.class);
         int handshakeLength = IO.readInt24(header);
@@ -119,19 +125,17 @@ public class MessageStream {
         // we've already read it from the buffer
         this.messagesBuffer.skip(TLS_HANDSHAKE_HEADER_LENGTH);
 
-        ByteBuffer body = ByteBuffer.wrap(this.messagesBuffer.getBytes(handshakeLength));
+        ByteBuffer body = this.messagesBuffer.getBytes(handshakeLength);
 
         return TlsDecoder.readHandshakeOfType(type, body);
     }
 
     private ApplicationData tryReadApplicationData() {
-        int available = this.messagesBuffer.available();
-
-        if (available < TLS_HANDSHAKE_HEADER_LENGTH) {
+        if (this.messagesBuffer.isEmpty()) {
             return null;
         }
 
-        return null;
+        return new ApplicationData(this.messagesBuffer.getBytes());
     }
 
     private boolean readRecordIntoBuffer() throws IOException {

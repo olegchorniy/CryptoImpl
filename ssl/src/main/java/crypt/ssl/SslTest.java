@@ -2,14 +2,18 @@ package crypt.ssl;
 
 import crypt.ssl.messages.TlsMessage;
 import crypt.ssl.messages.alert.Alert;
+import crypt.ssl.utils.Dumper;
 import crypt.ssl.utils.Hex;
 import org.bouncycastle.crypto.tls.*;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
@@ -23,8 +27,8 @@ public class SslTest {
 
     public static void main(String[] args) throws IOException, CertificateException {
         //sslPretendingServer();
-        //sslClient();
-        bcSslClient();
+        sslClient();
+        //bcSslClient();
     }
 
     public static void sslPretendingServer() throws IOException {
@@ -32,7 +36,6 @@ public class SslTest {
             Socket client = serverSocket.accept();
             new Thread(() -> {
                 try {
-                    //dumpAscii(client.getInputStream());
                     dump(client.getInputStream());
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -76,8 +79,8 @@ public class SslTest {
     }
 
     public static void sslClient() throws IOException {
-        String host = "habrahabr.ru";
-        int port = 443;
+        String host = "localhost";
+        int port = 8090;
         String path = "/test";
 
         socket(host, port, (in, out) -> {
@@ -85,7 +88,7 @@ public class SslTest {
             write(out, bytes(
                     22 /* Content Type = Handshake */,
                     3, 3, /* Protocol Version = TLS v 1.2*/
-                    int16(39 /* TBD */), /* Length*/
+                    int16(45 /* TBD */), /* Length*/
 
                     /* -------------- Handshake Message ----------- */
                     1, /* Handshake type = ClientHello*/
@@ -96,15 +99,7 @@ public class SslTest {
 
                     random_bytes(32), /* Random */
 
-                    0 /* Length of Session Id */
-            ));
-
-            write(out, bytes(
-                    22 /* Content Type = Handshake */,
-                    3, 3, /* Protocol Version = TLS v 1.2*/
-                    int16(6 /* TBD */), /* Length*/
-
-                    // Continuation of the previous message ...
+                    0, /* Length of Session Id */
 
                     int16(2), /* Bytes in Cipher Suites */
                     int16(CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256.getValue()),
@@ -114,6 +109,11 @@ public class SslTest {
             ));
 
             dump(in);
+
+           /* MessageStream stream = new MessageStream(in, out);
+
+            System.out.println(stream.readMessage());
+            System.out.println(stream.readMessage());*/
         });
     }
 
@@ -258,6 +258,8 @@ public class SslTest {
     }
 
     private static void write(OutputStream os, byte[] bytes) throws IOException {
+        System.out.println("Length: " + bytes.length);
+        Dumper.dumpToStdout(ByteBuffer.wrap(bytes));
         os.write(bytes);
     }
 
@@ -299,17 +301,6 @@ public class SslTest {
             }
         }
     }
-
-    //TODO: look for good implementation in sun.misc.HexDumpEncoder
-    private static void dumpAscii(InputStream is) throws IOException {
-        InputStreamReader reader = new InputStreamReader(is, StandardCharsets.US_ASCII);
-        int value;
-
-        while ((value = reader.read()) != -1) {
-            System.out.print((char) value);
-        }
-    }
-
 
     private interface SocketIOConsumer {
         void consume(InputStream is, OutputStream os) throws IOException;

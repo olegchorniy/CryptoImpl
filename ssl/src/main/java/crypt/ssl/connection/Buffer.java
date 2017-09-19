@@ -2,7 +2,11 @@ package crypt.ssl.connection;
 
 import crypt.ssl.Constants;
 
+import java.nio.ByteBuffer;
+
 public class Buffer {
+
+    public static final ByteBuffer EMPTY = ByteBuffer.allocate(0);
 
     private byte[] bytes;
     private int length;
@@ -11,26 +15,9 @@ public class Buffer {
         this.reset();
     }
 
-    public void reset() {
-        this.bytes = Constants.EMPTY;
-        this.length = 0;
-    }
-
-    public boolean isEmpty() {
-        return available() == 0;
-    }
-
-    public int available() {
-        return this.length;
-    }
-
-    public void putBytes(byte[] src) {
-        putBytes(src, 0, src.length);
-    }
-
-    public void putBytes(byte[] src, int srcLength) {
-        putBytes(src, 0, srcLength);
-    }
+    /* ------------------------------------------------- */
+    /* ----------------- Core methods ------------------ */
+    /* ------------------------------------------------- */
 
     public void putBytes(byte[] src, int offset, int srcLength) {
         int targetLength = this.length + srcLength;
@@ -41,58 +28,12 @@ public class Buffer {
         this.length += srcLength;
     }
 
-    public byte[] getBytes() {
-        int available = available();
-        if (available == 0) {
-            return Constants.EMPTY;
-        }
-
-        byte[] dst = new byte[available];
-        getBytes(dst, available);
-
-        return dst;
-    }
-
-    public byte[] getBytes(int length) {
-        byte[] dst = new byte[length];
-        getBytes(dst, length);
-
-        return dst;
-    }
-
-    public void getBytes(byte[] dst, int length) {
-        getBytes(dst, 0, length);
-    }
-
     public void getBytes(byte[] dst, int offset, int length) {
         peekBytes(dst, offset, length);
 
         shiftLeft(length);
 
         this.length -= length;
-    }
-
-    public byte[] peekBytes(int length) {
-        byte[] dst = new byte[length];
-        peekBytes(dst, 0, length);
-
-        return dst;
-    }
-
-    public byte[] peekBytes() {
-        int available = available();
-        if (available == 0) {
-            return Constants.EMPTY;
-        }
-
-        byte[] dst = new byte[available];
-        peekBytes(dst, available);
-
-        return dst;
-    }
-
-    public void peekBytes(byte[] dst, int length) {
-        peekBytes(dst, 0, length);
     }
 
     public void peekBytes(byte[] dst, int offset, int length) {
@@ -108,6 +49,85 @@ public class Buffer {
 
         this.length -= amount;
     }
+
+    public void reset() {
+        this.bytes = Constants.EMPTY;
+        this.length = 0;
+    }
+
+    public boolean isEmpty() {
+        return available() == 0;
+    }
+
+    public int available() {
+        return this.length;
+    }
+
+
+    /* ------------------------------------------------- */
+    /* ---------------- Derived methods ---------------- */
+    /* ------------------------------------------------- */
+
+    public void putBytes(byte[] src) {
+        putBytes(src, 0, src.length);
+    }
+
+    public void putBytes(byte[] src, int srcLength) {
+        putBytes(src, 0, srcLength);
+    }
+
+    public void getBytes(byte[] dst, int length) {
+        getBytes(dst, 0, length);
+    }
+
+    public void peekBytes(byte[] dst, int length) {
+        peekBytes(dst, 0, length);
+    }
+
+    /* ------------------------------------------------- */
+    /* ----------- ByteBuffer specializations ---------- */
+    /* ------------------------------------------------- */
+
+    public void putBytes(ByteBuffer byteBuffer) {
+        byte[] src = new byte[byteBuffer.remaining()];
+        byteBuffer.get(src);
+
+        putBytes(src);
+    }
+
+    public ByteBuffer getBytes() {
+        if (isEmpty()) {
+            return EMPTY;
+        }
+
+        return getBytes(available());
+    }
+
+    public ByteBuffer getBytes(int length) {
+        byte[] dst = new byte[length];
+        getBytes(dst, length);
+
+        return ByteBuffer.wrap(dst);
+    }
+
+    public ByteBuffer peekBytes() {
+        if (isEmpty()) {
+            return EMPTY;
+        }
+
+        return peekBytes(available());
+    }
+
+    public ByteBuffer peekBytes(int length) {
+        byte[] dst = new byte[length];
+        peekBytes(dst, 0, length);
+
+        return ByteBuffer.wrap(dst);
+    }
+
+    /* ------------------------------------------------- */
+    /* --------------- Private methods ----------------- */
+    /* ------------------------------------------------- */
 
     private void checkLength(int requiredBytes) {
         int availableBytes = available();

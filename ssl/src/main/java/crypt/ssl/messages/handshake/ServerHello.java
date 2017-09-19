@@ -4,9 +4,11 @@ import crypt.ssl.CipherSuite;
 import crypt.ssl.messages.*;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 @Getter
 @Setter
+@ToString
 public class ServerHello extends HandshakeMessage {
 
     private ProtocolVersion serverVersion;
