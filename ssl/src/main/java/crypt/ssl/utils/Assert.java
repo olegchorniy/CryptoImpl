@@ -7,6 +7,10 @@ public abstract class Assert {
     private Assert() {
     }
 
+    public static void assertNotNull(Object obj) {
+        assertTrue(obj != null, "Object should not be null");
+    }
+
     public static void assertEquals(Object left, Object right) {
         assertTrue(Objects.equals(left, right));
     }

@@ -7,7 +7,6 @@ import crypt.ssl.messages.SessionId;
 import crypt.ssl.messages.TlsRecord;
 import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.handshake.ClientHello;
-import crypt.ssl.messages.handshake.HandshakeMessage;
 import crypt.ssl.utils.IO;
 
 import java.io.ByteArrayOutputStream;
@@ -31,17 +30,7 @@ public abstract class TlsEncoder {
         IO.writeBytes(out, recordBody);
     }
 
-    private static void writeHandshake(OutputStream out, HandshakeMessage handshake) throws IOException {
-        switch (handshake.getContentType()) {
-            case CLIENT_HELLO:
-                writeClientHello(out, (ClientHello) handshake);
-                break;
-        }
-
-        System.err.println(handshake.getContentType() + " handshake message type is not supported for now");
-    }
-
-    private static void writeClientHello(OutputStream out, ClientHello clientHello) throws IOException {
+    public static void writeClientHello(OutputStream out, ClientHello clientHello) throws IOException {
         IO.writeEnum(out, clientHello.getClientVersion());
 
         writeRandom(out, clientHello.getRandom());

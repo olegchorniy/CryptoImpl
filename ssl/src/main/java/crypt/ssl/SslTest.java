@@ -102,7 +102,7 @@ public class SslTest {
                     0, /* Length of Session Id */
 
                     int16(2), /* Bytes in Cipher Suites */
-                    int16(CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256.getValue()),
+                    int16(CipherSuite.TLS_RSA_WITH_AES_128_GCM_SHA256.getValue()),
 
                     1, /* Number of compression methods */
                     0 /* Compression method */
@@ -258,8 +258,8 @@ public class SslTest {
     }
 
     private static void write(OutputStream os, byte[] bytes) throws IOException {
-        System.out.println("Length: " + bytes.length);
-        Dumper.dumpToStdout(ByteBuffer.wrap(bytes));
+        /*System.out.println("Length: " + bytes.length);
+        Dumper.dumpToStdout(ByteBuffer.wrap(bytes));*/
         os.write(bytes);
     }
 

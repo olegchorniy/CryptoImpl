@@ -2,13 +2,13 @@ package crypt.ssl.messages.handshake;
 
 import crypt.ssl.CipherSuite;
 import crypt.ssl.messages.*;
+import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.util.List;
 
 @Getter
-@Setter
+@Builder
 public class ClientHello extends HandshakeMessage {
 
     private ProtocolVersion clientVersion;
