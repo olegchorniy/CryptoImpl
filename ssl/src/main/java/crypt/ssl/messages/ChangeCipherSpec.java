@@ -13,4 +13,9 @@ public class ChangeCipherSpec implements TlsMessage {
 
     @Size(1)
     private int type;
+
+    @Override
+    public ContentType getContentType() {
+        return ContentType.CHANGE_CIPHER_SPEC;
+    }
 }

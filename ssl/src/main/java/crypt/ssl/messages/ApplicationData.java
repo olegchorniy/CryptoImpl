@@ -14,4 +14,9 @@ import java.nio.ByteBuffer;
 public class ApplicationData implements TlsMessage {
 
     private ByteBuffer data;
+
+    @Override
+    public ContentType getContentType() {
+        return ContentType.APPLICATION_DATA;
+    }
 }

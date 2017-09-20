@@ -1,5 +1,6 @@
 package crypt.ssl.messages.alert;
 
+import crypt.ssl.messages.ContentType;
 import crypt.ssl.messages.TlsMessage;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -14,4 +15,9 @@ public class Alert implements TlsMessage {
 
     private AlertLevel level;
     private AlertDescription description;
+
+    @Override
+    public ContentType getContentType() {
+        return ContentType.ALERT;
+    }
 }

@@ -1,5 +1,6 @@
 package crypt.ssl.messages.handshake;
 
+import crypt.ssl.messages.ContentType;
 import crypt.ssl.messages.TlsMessage;
 import crypt.ssl.messages.VarLength;
 import lombok.*;
@@ -16,5 +17,10 @@ public abstract class HandshakeMessage implements TlsMessage {
 
     public int getLength() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ContentType getContentType() {
+        return ContentType.HANDSHAKE;
     }
 }

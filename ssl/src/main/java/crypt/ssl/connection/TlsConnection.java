@@ -1,11 +1,14 @@
 package crypt.ssl.connection;
 
 import crypt.ssl.encoding.TlsEncoder;
-import crypt.ssl.messages.ContentType;
-import crypt.ssl.messages.ProtocolVersion;
+import crypt.ssl.exceptions.NoCloseNotifyException;
+import crypt.ssl.exceptions.TlsAlertException;
+import crypt.ssl.exceptions.TlsUnexpectedMessageException;
+import crypt.ssl.messages.*;
 import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.alert.AlertDescription;
 import crypt.ssl.messages.alert.AlertLevel;
+import crypt.ssl.messages.handshake.HandshakeMessage;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -16,15 +19,20 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
+
 public class TlsConnection implements Connection {
 
+    // We don't support other TLS versions.
+    private final ProtocolVersion version = ProtocolVersion.TLSv12;
     private final Random random = new Random();
 
     private Socket socket;
     private MessageStream messageStream;
 
-    // We don't support other TLS versions.
-    private final ProtocolVersion version = ProtocolVersion.TLSv12;
+    private ConnectionState state = ConnectionState.NEW;
+    private HandshakeState handshakeState = null;
+
+    private final Buffer applicationDateBuffer = new Buffer();
 
     @Override
     public void connect(InetSocketAddress address) throws IOException {
@@ -41,9 +49,79 @@ public class TlsConnection implements Connection {
     }
 
     private void performHandshake() throws IOException {
-
         //sendClientHello();
-        //TODO: Hmmm... single loop for all records or separate loop for handshake
+
+        this.state = ConnectionState.HANDSHAKE;
+        this.handshakeState = HandshakeState.CLIENT_HELLO_SENT;
+
+        while (this.state != ConnectionState.ESTABLISHED) {
+            readAndHandleMessage();
+        }
+    }
+
+    private void readAndHandleMessage() throws IOException {
+        TlsMessage message = this.messageStream.readMessage();
+        if (message == null) {
+            throw new NoCloseNotifyException();
+        }
+
+        try {
+            handleMessage(message);
+        } catch (TlsAlertException alert) {
+            sendAlert(alert.getLevel(), alert.getDescription());
+            //TODO: close the connection
+        }
+    }
+
+    private void handleMessage(TlsMessage message) throws IOException {
+        switch (message.getContentType()) {
+            case HANDSHAKE:
+                handleHandshakeMessage((HandshakeMessage) message);
+                break;
+
+            case CHANGE_CIPHER_SPEC:
+                handleChangeCipherSpec((ChangeCipherSpec) message);
+                break;
+
+            case APPLICATION_DATA:
+                handleApplicationData((ApplicationData) message);
+                break;
+
+            case ALERT:
+                handleAlertMessage((Alert) message);
+                break;
+        }
+    }
+
+    private void handleHandshakeMessage(HandshakeMessage handshakeMessage) throws IOException {
+        if (this.state != ConnectionState.HANDSHAKE) {
+            // Actually, there is a scenario where handshake message can be received after connection has been established.
+            // It a case when server sends a HELLO_REQUEST message to renegotiate connection parameters.
+            // But this part of the protocol in not supported in current implementation.
+            throw new TlsUnexpectedMessageException();
+        }
+    }
+
+    private void handleChangeCipherSpec(ChangeCipherSpec changeCipherSpec) throws IOException {
+    }
+
+    private void handleApplicationData(ApplicationData applicationData) throws IOException {
+    }
+
+    private void handleAlertMessage(Alert alert) throws IOException {
+    }
+
+    private void closeInternal() throws IOException {
+        sendAlert(AlertLevel.FATAL, AlertDescription.CLOSE_NOTIFY);
+    }
+
+    private void sendAlert(AlertLevel level, AlertDescription description) throws IOException {
+        Message message = new Message();
+
+        Alert alert = new Alert(level, description);
+        TlsEncoder.writeAlert(message, alert);
+
+        this.messageStream.writeMessage(ContentType.ALERT, message.toBuffer());
     }
 
     @Override
@@ -61,30 +139,30 @@ public class TlsConnection implements Connection {
 
     }
 
-    private void sendAlert(AlertLevel level, AlertDescription description) throws IOException {
-        Message message = new Message();
-
-        Alert alert = new Alert(level, description);
-        TlsEncoder.writeAlert(message, alert);
-
-        this.messageStream.writeMessage(ContentType.ALERT, message.toBuffer());
-    }
-
-    /*private enum ConnectionState {
-
+    private enum ConnectionState {
+        NEW,
+        HANDSHAKE,
+        ESTABLISHED,
+        CLOSED
     }
 
     private enum HandshakeState {
-        NOT_STARTED,
-        WAITING_SERVER_HELLO,
-        WAITING_SERVER_CERTIFICATE,
-        WAITING_SERVER_KEY_EXCHANGE
-    }*/
+        CLIENT_HELLO_SENT
+
+    }
 
     private static class Message extends ByteArrayOutputStream {
 
         public ByteBuffer toBuffer() {
             return ByteBuffer.wrap(this.toByteArray());
+        }
+    }
+
+    private class TlsInputStream extends InputStream {
+
+        @Override
+        public int read() throws IOException {
+            return 0;
         }
     }
 }

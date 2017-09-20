@@ -32,13 +32,13 @@ public abstract class TlsEncoder {
     }
 
     private static void writeHandshake(OutputStream out, HandshakeMessage handshake) throws IOException {
-        switch (handshake.getType()) {
+        switch (handshake.getContentType()) {
             case CLIENT_HELLO:
                 writeClientHello(out, (ClientHello) handshake);
                 break;
         }
 
-        System.err.println(handshake.getType() + " handshake message type is not supported for now");
+        System.err.println(handshake.getContentType() + " handshake message type is not supported for now");
     }
 
     private static void writeClientHello(OutputStream out, ClientHello clientHello) throws IOException {
