@@ -277,6 +277,8 @@ public class TlsConnection implements Connection {
     }
 
     private void sendFinished() throws IOException {
+
+        //sendMessage(, );
     }
 
     private void handleChangeCipherSpec(ChangeCipherSpec changeCipherSpec) throws IOException {
