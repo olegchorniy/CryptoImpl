@@ -53,27 +53,6 @@ public abstract class TlsDecoder {
         return new TlsRecord(type, version, recordBody);
     }
 
-    /*private static List<TlsMessage> readMessages(ByteBuffer recordBody, ContentType type) {
-        switch (type) {
-            case ALERT:
-                return singletonList(readAlert(recordBody));
-            case HANDSHAKE:
-
-                List<TlsMessage> messages = new ArrayList<>();
-
-                while (recordBody.hasRemaining()) {
-                    messages.add(readHandshake(recordBody));
-                }
-
-                return messages;
-        }
-
-        //TODO: uncomment
-        //throw new IllegalStateException(type + "Other TLS messages not supported");
-        System.err.println(type + " TLS message type is not supported");
-        return emptyList();
-    }*/
-
     public static Alert readAlert(ByteBuffer source) {
         AlertLevel level = IO.readEnum(source, AlertLevel.class);
         AlertDescription description = IO.readEnum(source, AlertDescription.class);
@@ -86,31 +65,20 @@ public abstract class TlsDecoder {
         return new ChangeCipherSpec(type);
     }
 
-    @Deprecated
-    public static HandshakeMessage readHandshake(ByteBuffer source) {
-        HandshakeType type = IO.readEnum(source, HandshakeType.class);
-        int length = IO.readInt24(source);
-        ByteBuffer handshakeBuffer = IO.readAsBuffer(source, length);
-
-        return readHandshakeOfType(type, handshakeBuffer);
-    }
-
     public static HandshakeMessage readHandshakeOfType(HandshakeType type, ByteBuffer handshakeBuffer) {
         switch (type) {
             case SERVER_HELLO:
                 return readServerHello(handshakeBuffer);
             case CERTIFICATE:
                 return readCertificate(handshakeBuffer);
+            case SERVER_KEY_EXCHANGE:
+                return new ServerKeyExchange(handshakeBuffer);
             case SERVER_HELLO_DONE:
                 return ServerHelloDone.INSTANCE;
         }
 
-        //TODO: uncomment
-        //throw new IllegalStateException(type + " handshake message type is not supported for now");
-        System.err.println(type + " handshake message type is not supported for now");
         Dumper.dumpToStderr(handshakeBuffer);
-
-        return null;
+        throw new IllegalStateException(type + " handshake message type is not supported for now");
     }
 
     private static ServerHello readServerHello(ByteBuffer source) {
@@ -149,9 +117,10 @@ public abstract class TlsDecoder {
     }
 
     private static RandomValue readRandomValue(ByteBuffer source) {
-        byte[] randomBytes = IO.readBytes(source, 32);
+        int gmtUnixTime = IO.readInt32(source);
+        byte[] randomBytes = IO.readBytes(source, 28);
 
-        return new RandomValue(randomBytes);
+        return new RandomValue(gmtUnixTime, randomBytes);
     }
 
     private static SessionId readSessionId(ByteBuffer source) {

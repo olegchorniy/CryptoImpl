@@ -108,6 +108,10 @@ public class Dumper {
         }
     }
 
+    public static void dumpToStdout(byte[] bytes) {
+        dumpToStdout(ByteBuffer.wrap(bytes));
+    }
+
     public static void dumpToStdout(ByteBuffer buffer) {
         try {
             new Dumper().dump(buffer);

@@ -24,4 +24,8 @@ public abstract class Assert {
     public static void assertTrue(boolean expression) {
         assertTrue(expression, "[Assertion failed] - this state invariant must be true");
     }
+
+    public static void assertFalse(boolean expression) {
+        assertTrue(!expression);
+    }
 }

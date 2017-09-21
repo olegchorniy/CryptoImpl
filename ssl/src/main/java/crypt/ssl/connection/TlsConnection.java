@@ -6,14 +6,14 @@ import crypt.ssl.exceptions.NoCloseNotifyException;
 import crypt.ssl.exceptions.TlsAlertException;
 import crypt.ssl.exceptions.TlsException;
 import crypt.ssl.exceptions.TlsUnexpectedMessageException;
+import crypt.ssl.keyexchange.DHEKeyExchange;
+import crypt.ssl.keyexchange.KeyExchange;
+import crypt.ssl.keyexchange.KeyExchangeType;
 import crypt.ssl.messages.*;
 import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.alert.AlertDescription;
 import crypt.ssl.messages.alert.AlertLevel;
-import crypt.ssl.messages.handshake.CertificateMessage;
-import crypt.ssl.messages.handshake.ClientHello;
-import crypt.ssl.messages.handshake.HandshakeMessage;
-import crypt.ssl.messages.handshake.ServerHello;
+import crypt.ssl.messages.handshake.*;
 import crypt.ssl.utils.Assert;
 
 import java.io.ByteArrayOutputStream;
@@ -34,7 +34,7 @@ public class TlsConnection implements Connection {
 
     // We don't support other TLS versions.
     private final ProtocolVersion version = ProtocolVersion.TLSv12;
-    private final Random random = new Random();
+    private final RandomGenerator random = new RandomGenerator(new Random());
 
     private Socket socket;
     private MessageStream messageStream;
@@ -45,7 +45,9 @@ public class TlsConnection implements Connection {
     private HandshakeState handshakeState = null;
     private boolean fullHandshake = true;
 
-    private final Buffer applicationDateBuffer = new Buffer();
+    private KeyExchange keyExchange;
+
+    private final Buffer applicationDataBuffer = new Buffer();
 
     /* -------------------------------------------------- */
 
@@ -105,10 +107,10 @@ public class TlsConnection implements Connection {
     }
 
     private RandomValue generateRandom() {
-        byte[] randomBytes = new byte[32];
-        random.nextBytes(randomBytes);
-
-        return new RandomValue(randomBytes);
+        return RandomValue.builder()
+                .gmtUnitTime(random.randomInt())
+                .randomBytes(random.getBytes(28))
+                .build();
     }
 
     private void readAndHandleMessage() throws IOException {
@@ -160,8 +162,11 @@ public class TlsConnection implements Connection {
                 Assert.assertEquals(CompressionMethod.NULL, serverHello.getCompressionMethod());
                 Assert.assertEquals(this.version, serverHello.getServerVersion());
 
-                parameters.setServerRandom(serverHello.getRandom());
-                parameters.setCipherSuite(serverHello.getCipherSuite());
+                this.parameters.setServerRandom(serverHello.getRandom());
+
+                CipherSuite cipherSuite = serverHello.getCipherSuite();
+
+                this.keyExchange = createKeyExchange(cipherSuite.getKeyExchangeType());
 
                 //TODO: For abbreviated handshake:
                 //TODO: if this SSID is equal to the one specified in the ClientHello (if any),
@@ -189,30 +194,89 @@ public class TlsConnection implements Connection {
 
                 //TODO: check certificate and store it's necessary parameters
 
+                this.keyExchange.processServerCertificate(certificate.getCertificates().get(0));
+
                 this.handshakeState = HandshakeState.CERTIFICATE_RECEIVED;
                 return;
 
             case CERTIFICATE_RECEIVED:
-                // Here we should receive either ServerKeyExchange if our key exchange protocol requires that
-                // or ServerHelloDone otherwise
+                Assert.assertTrue(this.fullHandshake);
 
-                /*
-                if (keyExchange.requiresServerData()) {
+                // Here we should receive either ServerKeyExchange if our key exchange protocol requires that
+                // or ServerHelloDone otherwise.
+
+                if (keyExchange.requiresServerKeyExchange()) {
                     ServerKeyExchange serveKeyExchange = safeCast(handshake, ServerKeyExchange.class);
 
-                    ... process it ...
+                    keyExchange.processServerKeyExchange(serveKeyExchange);
 
                     this.handshakeState = HandshakeState.SERVER_KEY_EXCHANGE_RECEIVED;
                     return;
                 }
 
+                /*
                 otherwise we just fall through to the next section
                 (also, probably it is a good idea to execute the following assignment
                 this.handshakeState = HandshakeState.SERVER_KEY_EXCHANGE_RECEIVED
                 in order to indicate that we don't need this step at all)
                 */
             case SERVER_KEY_EXCHANGE_RECEIVED:
+                Assert.assertTrue(this.fullHandshake);
+
+                // We can also receive CertificateRequest at this moment but we don't support this scenario.
+                // safeCast is called just to ensure that we've really received ServerHelloDone message here.
+                safeCast(handshake, ServerHelloDone.class);
+
+                continueFullHandshake();
+                return;
+
+            case FINISHED_RECEIVED:
+                //Finished finished = safeCast(handshake, Finished.class);
+                //verifyFinished(finished);
+
+                if (this.fullHandshake) {
+                    //TODO: handshake is done
+                } else {
+                    continueAbbreviatedHandshake();
+                }
         }
+    }
+
+    private KeyExchange createKeyExchange(KeyExchangeType type) {
+        switch (type) {
+            case DHE:
+                return new DHEKeyExchange(this.random);
+        }
+
+        throw new UnsupportedOperationException(type + " is not supported yet");
+    }
+
+    private void continueFullHandshake() throws IOException {
+        // And again - we don't support client authentication,
+        // so we never sent Certificate and CertificateVerify messages
+
+        sendClientKeyExchange();
+        sendChangeCipherSpec();
+        sendFinished();
+    }
+
+    private void continueAbbreviatedHandshake() throws IOException {
+        sendChangeCipherSpec();
+        sendFinished();
+
+        // TODO: handshake is done
+    }
+
+    private void sendClientKeyExchange() throws IOException {
+        ClientKeyExchange clientKeyExchange = this.keyExchange.generateClientKeyExchange();
+        //sendMessage(clientKeyExchange, TlsEncoder::writeClientKeyExchange);
+    }
+
+    private void sendChangeCipherSpec() throws IOException {
+        sendMessage(ChangeCipherSpec.INSTANCE, TlsEncoder::writeChangeCipherSpec);
+    }
+
+    private void sendFinished() throws IOException {
     }
 
     private void handleChangeCipherSpec(ChangeCipherSpec changeCipherSpec) throws IOException {
@@ -249,12 +313,17 @@ public class TlsConnection implements Connection {
     }
 
     private void sendAlert(AlertLevel level, AlertDescription description) throws IOException {
+        sendMessage(new Alert(level, description), TlsEncoder::writeAlert);
+    }
+
+    /**
+     * Helper method which serves as an adapter.
+     */
+    private <T extends TlsMessage> void sendMessage(T payload, TlsEncoder.Encoder<T> encoder) throws IOException {
         Message message = new Message();
+        encoder.encode(message, payload);
 
-        Alert alert = new Alert(level, description);
-        TlsEncoder.writeAlert(message, alert);
-
-        this.messageStream.writeMessage(ContentType.ALERT, message.toBuffer());
+        this.messageStream.writeMessage(payload.getContentType(), message.toBuffer());
     }
 
     @Override
@@ -295,7 +364,6 @@ public class TlsConnection implements Connection {
     private enum ConnectionState {
         NEW,
         HANDSHAKE,
-        ABBREVIATED_HANDSHAKE,
         ESTABLISHED,
         CLOSED
     }
@@ -304,7 +372,10 @@ public class TlsConnection implements Connection {
         CLIENT_HELLO_SENT,
         SERVER_HELLO_RECEIVED,
         CHANGE_CIPHER_SPEC_RECEIVED,
-        CERTIFICATE_RECEIVED, SERVER_KEY_EXCHANGE_RECEIVED, FINISHED_SENT
+        CERTIFICATE_RECEIVED,
+        SERVER_KEY_EXCHANGE_RECEIVED,
+        FINISHED_RECEIVED,
+        FINISHED_SENT
     }
 
     private static class Message extends ByteArrayOutputStream {

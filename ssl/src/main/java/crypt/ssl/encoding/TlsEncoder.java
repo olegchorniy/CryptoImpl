@@ -1,10 +1,7 @@
 package crypt.ssl.encoding;
 
 import crypt.ssl.CipherSuite;
-import crypt.ssl.messages.CompressionMethod;
-import crypt.ssl.messages.RandomValue;
-import crypt.ssl.messages.SessionId;
-import crypt.ssl.messages.TlsRecord;
+import crypt.ssl.messages.*;
 import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.handshake.ClientHello;
 import crypt.ssl.utils.IO;
@@ -46,6 +43,7 @@ public abstract class TlsEncoder {
     }
 
     private static void writeRandom(OutputStream out, RandomValue random) throws IOException {
+        IO.writeInt32(out, random.getGmtUnitTime());
         IO.writeBytes(out, random.getRandomBytes());
     }
 
@@ -59,6 +57,10 @@ public abstract class TlsEncoder {
     public static void writeAlert(OutputStream out, Alert alert) throws IOException {
         IO.writeEnum(out, alert.getLevel());
         IO.writeEnum(out, alert.getDescription());
+    }
+
+    public static void writeChangeCipherSpec(OutputStream out, ChangeCipherSpec changeCipherSpec) throws IOException {
+        IO.writeInt8(out, changeCipherSpec.getType());
     }
 
     public static <T> ByteBuffer writeToBuffer(Encoder<T> encoder, T obj) throws IOException {

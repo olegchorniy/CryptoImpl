@@ -11,6 +11,8 @@ import lombok.Setter;
 @NoArgsConstructor
 public class ChangeCipherSpec implements TlsMessage {
 
+    public static final ChangeCipherSpec INSTANCE = new ChangeCipherSpec(1);
+
     @Size(1)
     private int type;
 
