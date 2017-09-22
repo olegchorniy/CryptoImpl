@@ -2,6 +2,7 @@ package crypt.ssl.utils;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.nio.ByteBuffer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -26,12 +27,33 @@ public abstract class Hex {
                 .collect(Collectors.joining(" "));
     }
 
+    public static String toHex(ByteBuffer buffer) {
+        StringBuilder hexBuilder = new StringBuilder();
+
+        while (buffer.hasRemaining()) {
+
+            if (hexBuilder.length() > 0) {
+                hexBuilder.append(' ');
+            }
+
+            hexBuilder.append(toHex(buffer.get()));
+        }
+
+        buffer.rewind();
+
+        return hexBuilder.toString();
+    }
+
     public static String toHex(byte value) {
         return toHex(value & 0xFF, 2);
     }
 
     public static String toHex16(int value) {
         return toHex(value & 0xFFFF, 4);
+    }
+
+    public static String toHex32(int value) {
+        return toHex(value, 8);
     }
 
     public static String toHex(int value, int targetLength) {

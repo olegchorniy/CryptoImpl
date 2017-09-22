@@ -23,7 +23,7 @@ public abstract class TlsEnumUtils {
         Size sizeAnnotation = enumClass.getDeclaredAnnotation(Size.class);
 
         if (sizeAnnotation == null) {
-            throw new IllegalStateException("'Size' annotation is not found on the 'value' field");
+            throw new IllegalStateException("'Size' annotation is not found on the '" + enumClass + "' class");
         }
 
         return sizeAnnotation.value();

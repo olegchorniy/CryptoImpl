@@ -1,6 +1,6 @@
 package crypt.ssl.keyexchange;
 
-import crypt.ssl.connection.RandomGenerator;
+import crypt.ssl.connection.TlsContext;
 import crypt.ssl.encoding.KeyExchangeDecoder;
 import crypt.ssl.messages.ASN1Certificate;
 import crypt.ssl.messages.handshake.ClientKeyExchange;
@@ -12,11 +12,11 @@ import java.nio.ByteBuffer;
 
 public class DHEKeyExchange implements KeyExchange {
 
-    private final RandomGenerator random;
+    private final TlsContext context;
     private ServerDHParams serverDHParams;
 
-    public DHEKeyExchange(RandomGenerator random) {
-        this.random = random;
+    public DHEKeyExchange(TlsContext context) {
+        this.context = context;
     }
 
     @Override

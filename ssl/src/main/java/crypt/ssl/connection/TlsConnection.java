@@ -100,10 +100,7 @@ public class TlsConnection implements Connection {
 
         this.parameters.setClientRandom(randomValue);
 
-        Message message = new Message();
-        TlsEncoder.writeClientHello(message, clientHello);
-
-        this.messageStream.writeMessage(ContentType.HANDSHAKE, message.toBuffer());
+        sendMessage(clientHello, TlsEncoder::writeHandshake);
     }
 
     private RandomValue generateRandom() {
@@ -245,7 +242,8 @@ public class TlsConnection implements Connection {
     private KeyExchange createKeyExchange(KeyExchangeType type) {
         switch (type) {
             case DHE:
-                return new DHEKeyExchange(this.random);
+                //TODO: pass TlsContext here
+                return new DHEKeyExchange(null);
         }
 
         throw new UnsupportedOperationException(type + " is not supported yet");
@@ -269,7 +267,10 @@ public class TlsConnection implements Connection {
 
     private void sendClientKeyExchange() throws IOException {
         ClientKeyExchange clientKeyExchange = this.keyExchange.generateClientKeyExchange();
-        //sendMessage(clientKeyExchange, TlsEncoder::writeClientKeyExchange);
+
+        // TODO: hmmm.. and what about parameters generation for us ???
+
+        sendMessage(clientKeyExchange, TlsEncoder::writeHandshake);
     }
 
     private void sendChangeCipherSpec() throws IOException {
@@ -321,7 +322,7 @@ public class TlsConnection implements Connection {
     /**
      * Helper method which serves as an adapter.
      */
-    private <T extends TlsMessage> void sendMessage(T payload, TlsEncoder.Encoder<T> encoder) throws IOException {
+    private <T extends TlsMessage> void sendMessage(T payload, TlsEncoder.Encoder<? super T> encoder) throws IOException {
         Message message = new Message();
         encoder.encode(message, payload);
 

@@ -1,6 +1,5 @@
 package crypt.ssl.messages.keyexchange;
 
-
 import crypt.ssl.signature.SignatureAndHashAlgorithm;
 import crypt.ssl.utils.Hex;
 import lombok.AllArgsConstructor;
@@ -10,16 +9,16 @@ import java.nio.ByteBuffer;
 
 @Getter
 @AllArgsConstructor
-public class SignedDHParams {
+public class SignedParams<T> {
 
-    private ServerDHParams serverDHParams;
+    private T params; //or maybe better let subclasses to define this field?
     private SignatureAndHashAlgorithm signatureAndHashAlgorithm;
     private ByteBuffer signature;
 
     @Override
     public String toString() {
         return "SignedDHParams(" +
-                "serverDHParams=" + serverDHParams +
+                "params=" + params +
                 ", signatureAndHashAlgorithm=" + signatureAndHashAlgorithm +
                 ", signature=" + Hex.toHex(signature) +
                 ')';

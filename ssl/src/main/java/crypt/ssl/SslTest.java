@@ -1,8 +1,15 @@
 package crypt.ssl;
 
-import crypt.ssl.messages.TlsMessage;
+import crypt.ssl.connection.MessageStream;
+import crypt.ssl.encoding.KeyExchangeDecoder;
+import crypt.ssl.encoding.TlsEncoder;
+import crypt.ssl.messages.CompressionMethod;
+import crypt.ssl.messages.ContentType;
+import crypt.ssl.messages.*;
+import crypt.ssl.messages.ProtocolVersion;
 import crypt.ssl.messages.alert.Alert;
-import crypt.ssl.utils.Dumper;
+import crypt.ssl.messages.handshake.ClientHello;
+import crypt.ssl.messages.handshake.ServerKeyExchange;
 import crypt.ssl.utils.Hex;
 import org.bouncycastle.crypto.tls.*;
 
@@ -13,7 +20,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
@@ -85,35 +91,54 @@ public class SslTest {
 
         socket(host, port, (in, out) -> {
 
-            write(out, bytes(
-                    22 /* Content Type = Handshake */,
-                    3, 3, /* Protocol Version = TLS v 1.2*/
-                    int16(45 /* TBD */), /* Length*/
+            /*write(out, bytes(
+                    22 *//* Content Type = Handshake *//*,
+                    3, 3, *//* Protocol Version = TLS v 1.2*//*
+                    int16(45 *//* TBD *//*), *//* Length*//*
 
-                    /* -------------- Handshake Message ----------- */
-                    1, /* Handshake type = ClientHello*/
-                    int24(41 /* TBD */), /* Handshake message data length */
+                    *//* -------------- Handshake Message ----------- *//*
+                    1, *//* Handshake type = ClientHello*//*
+                    int24(41 *//* TBD *//*), *//* Handshake message data length *//*
 
-                    /* Client Hello */
-                    3, 3, /* Protocol Version = TLS v 1.2*/
+                    *//* Client Hello *//*
+                    3, 3, *//* Protocol Version = TLS v 1.2*//*
 
-                    random_bytes(32), /* Random */
+                    not_random_bytes(32), *//* Random *//*
 
-                    0, /* Length of Session Id */
+                    0, *//* Length of Session Id *//*
 
-                    int16(2), /* Bytes in Cipher Suites */
-                    int16(CipherSuite.TLS_RSA_WITH_AES_128_GCM_SHA256.getValue()),
+                    int16(2), *//* Bytes in Cipher Suites *//*
+                    int16(CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256.getValue()),
 
-                    1, /* Number of compression methods */
-                    0 /* Compression method */
-            ));
+                    1, *//* Number of compression methods *//*
+                    0 *//* Compression method *//*
+            ));*/
 
-            dump(in);
+            //dump(in);
 
-           /* MessageStream stream = new MessageStream(in, out);
+            MessageStream stream = new MessageStream(in, out);
+            stream.setRecordVersion(ProtocolVersion.TLSv12);
+
+            ClientHello clientHello = ClientHello.builder()
+                    .clientVersion(ProtocolVersion.TLSv12)
+                    .random(new RandomValue(gmt_unix_time(), not_random_bytes(28)))
+                    .sessionId(SessionId.EMPTY)
+                    .cipherSuite(CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256)
+                    .compressionMethod(CompressionMethod.NULL)
+                    .extensions(Extensions.empty())
+                    .build();
+
+            //TODO: code get stuck on reading, thus sending wasn't performed successfully.
+            //TODO: pay MAXIMUM ATTENTION to buffers, especially to switching between read and write modes.
+            stream.writeMessage(ContentType.HANDSHAKE, TlsEncoder.encode(clientHello));
 
             System.out.println(stream.readMessage());
-            System.out.println(stream.readMessage());*/
+            System.out.println(stream.readMessage());
+
+            ServerKeyExchange serverKeyExchange = (ServerKeyExchange) stream.readMessage();
+            System.out.println(KeyExchangeDecoder.readDHKEParams(serverKeyExchange.getData()));
+
+            System.out.println(stream.readMessage());
         });
     }
 
@@ -135,6 +160,16 @@ public class SslTest {
 
     public static int gmt_unix_time() {
         return (int) (System.currentTimeMillis() / 1000);
+    }
+
+    public static byte[] not_random_bytes(int length) {
+        byte[] bytes = new byte[length];
+
+        for (int i = 0; i < length; i++) {
+            bytes[i] = (byte) i;
+        }
+
+        return bytes;
     }
 
     public static byte[] random_bytes(int length) {

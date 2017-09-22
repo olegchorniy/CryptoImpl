@@ -4,6 +4,7 @@ import crypt.ssl.CipherSuite;
 import crypt.ssl.messages.*;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Singular;
 
 import java.util.List;
 
@@ -16,9 +17,11 @@ public class ClientHello extends HandshakeMessage {
     private SessionId sessionId;
 
     @VarLength(2)
+    @Singular
     private List<CipherSuite> cipherSuites;
 
     @VarLength(1)
+    @Singular
     private List<CompressionMethod> compressionMethods;
 
     private Extensions extensions;

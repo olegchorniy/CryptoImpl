@@ -7,4 +7,9 @@ public class ServerHelloDone extends HandshakeMessage {
     private ServerHelloDone() {
         super(HandshakeType.SERVER_HELLO_DONE);
     }
+
+    @Override
+    public String toString() {
+        return "ServerHelloDone";
+    }
 }
