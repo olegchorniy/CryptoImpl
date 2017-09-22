@@ -8,8 +8,12 @@ import crypt.ssl.messages.ContentType;
 import crypt.ssl.messages.*;
 import crypt.ssl.messages.ProtocolVersion;
 import crypt.ssl.messages.alert.Alert;
+import crypt.ssl.messages.handshake.CertificateMessage;
 import crypt.ssl.messages.handshake.ClientHello;
+import crypt.ssl.messages.handshake.ServerHello;
 import crypt.ssl.messages.handshake.ServerKeyExchange;
+import crypt.ssl.messages.keyexchange.SignedDHParams;
+import crypt.ssl.testing.DigitalSignatureTest;
 import crypt.ssl.utils.Hex;
 import org.bouncycastle.crypto.tls.*;
 
@@ -25,7 +29,6 @@ import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.List;
 import java.util.Random;
 
 import static org.bouncycastle.crypto.tls.CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
@@ -92,31 +95,6 @@ public class SslTest {
 
         socket(host, port, (in, out) -> {
 
-            /*write(out, bytes(
-                    22 *//* Content Type = Handshake *//*,
-                    3, 3, *//* Protocol Version = TLS v 1.2*//*
-                    int16(45 *//* TBD *//*), *//* Length*//*
-
-                    *//* -------------- Handshake Message ----------- *//*
-                    1, *//* Handshake type = ClientHello*//*
-                    int24(41 *//* TBD *//*), *//* Handshake message data length *//*
-
-                    *//* Client Hello *//*
-                    3, 3, *//* Protocol Version = TLS v 1.2*//*
-
-                    not_random_bytes(32), *//* Random *//*
-
-                    0, *//* Length of Session Id *//*
-
-                    int16(2), *//* Bytes in Cipher Suites *//*
-                    int16(CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256.getValue()),
-
-                    1, *//* Number of compression methods *//*
-                    0 *//* Compression method *//*
-            ));*/
-
-            //dump(in);
-
             MessageStream stream = new MessageStream(in, out);
             stream.setRecordVersion(ProtocolVersion.TLSv12);
 
@@ -130,35 +108,37 @@ public class SslTest {
                     .extensions(Extensions.empty())
                     .build();
 
-            ByteBuffer clientHelloMessage = TlsEncoder.writeToBuffer(clientHello, TlsEncoder::writeHandshake);
+            ByteBuffer clientHelloMessage = TlsEncoder.encode(clientHello);
             stream.writeMessage(ContentType.HANDSHAKE, clientHelloMessage);
 
             //TODO: add checks for alerts, as there will we be a lot of them
             /* Looking what the server has sent us */
-            System.out.println(stream.readMessage());
+            ServerHello serverHello = (ServerHello) checkAlert(stream.readMessage());
+            CertificateMessage certificate = (CertificateMessage) checkAlert(stream.readMessage());
+
+            ServerKeyExchange serverKeyExchange = (ServerKeyExchange) checkAlert(stream.readMessage());
+            SignedDHParams dhkeParams = KeyExchangeDecoder.readDHKEParams(serverKeyExchange.getData());
+
             System.out.println(stream.readMessage());
 
-            ServerKeyExchange serverKeyExchange = (ServerKeyExchange) stream.readMessage();
-            System.out.println(KeyExchangeDecoder.readDHKEParams(serverKeyExchange.getData()));
-
-            System.out.println(stream.readMessage());
+            System.out.println(DigitalSignatureTest.checkSignature(
+                    clientHello.getRandom(),
+                    serverHello.getRandom(),
+                    dhkeParams.getServerDHParams(),
+                    dhkeParams.getSignature()
+            ));
         });
     }
 
-    private static boolean checkAlert(List<TlsMessage> messages) {
-        if (messages.size() != 1) {
-            return false;
+    private static TlsMessage checkAlert(TlsMessage message) {
+        if (!(message instanceof Alert)) {
+            return message;
         }
 
-        TlsMessage tlsMessage = messages.get(0);
-        if (!(tlsMessage instanceof Alert)) {
-            return false;
-        }
+        Alert alert = (Alert) message;
+        System.err.format("Alert:%n\tlevel: %s%n\tdescription: %s%n", alert.getLevel(), alert.getDescription());
 
-        Alert alert = (Alert) tlsMessage;
-        System.out.format("Alert:%n\tlevel: %s%n\tdescription: %s%n", alert.getLevel(), alert.getDescription());
-
-        return true;
+        throw new RuntimeException();
     }
 
     public static int gmt_unix_time() {

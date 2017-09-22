@@ -14,13 +14,14 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public abstract class TlsEncoder {
 
     private TlsEncoder() {
     }
+
+    /* -------------------- Public API --------------------- */
 
     public static void writeRecord(OutputStream out, TlsRecord record) throws IOException {
         IO.writeEnum(out, record.getType());
@@ -32,6 +33,15 @@ public abstract class TlsEncoder {
         IO.writeBytes(out, recordBody);
     }
 
+    public static void writeAlert(OutputStream out, Alert alert) throws IOException {
+        IO.writeEnum(out, alert.getLevel());
+        IO.writeEnum(out, alert.getDescription());
+    }
+
+    public static void writeChangeCipherSpec(OutputStream out, ChangeCipherSpec changeCipherSpec) throws IOException {
+        IO.writeInt8(out, changeCipherSpec.getType());
+    }
+
     public static void writeHandshake(OutputStream out, HandshakeMessage handshake) throws IOException {
         ByteBuffer encodedHandshake = encodeHandshake(handshake);
 
@@ -39,6 +49,8 @@ public abstract class TlsEncoder {
         IO.writeInt24(out, encodedHandshake.remaining());
         IO.writeBytes(out, encodedHandshake);
     }
+
+    /* -------------------- Helper encoders --------------------- */
 
     private static ByteBuffer encodeHandshake(HandshakeMessage handshake) throws IOException {
         HandshakeType type = handshake.getType();
@@ -84,14 +96,7 @@ public abstract class TlsEncoder {
         IO.writeBytes(out, sessionIdValue);
     }
 
-    public static void writeAlert(OutputStream out, Alert alert) throws IOException {
-        IO.writeEnum(out, alert.getLevel());
-        IO.writeEnum(out, alert.getDescription());
-    }
-
-    public static void writeChangeCipherSpec(OutputStream out, ChangeCipherSpec changeCipherSpec) throws IOException {
-        IO.writeInt8(out, changeCipherSpec.getType());
-    }
+    /* -------------------- Adapters --------------------- */
 
     public static <T> ByteBuffer writeToBuffer(T obj, Encoder<? super T> encoder) throws IOException {
         return ByteBuffer.wrap(writeToArray(obj, encoder));
@@ -124,17 +129,10 @@ public abstract class TlsEncoder {
     }
 
     private static Method findEncoder(Class<?> clazz) throws IOException {
-        Class<?>[] targetMethodParameterTypes = {
-                OutputStream.class, clazz
-        };
-
         List<Method> candidates = new ArrayList<>();
 
-        // TODO: make this work with subtypes
         for (Method method : TlsEncoder.class.getDeclaredMethods()) {
-            if (Modifier.isStatic(method.getModifiers()) &&
-                    Modifier.isPublic(method.getModifiers()) &&
-                    Arrays.equals(method.getParameterTypes(), targetMethodParameterTypes)) {
+            if (visibilityMatch(method) && parametersMatch(method, clazz)) {
                 candidates.add(method);
             }
         }
@@ -151,5 +149,17 @@ public abstract class TlsEncoder {
         encodeMethod.setAccessible(true);
 
         return encodeMethod;
+    }
+
+    private static boolean visibilityMatch(Method method) {
+        int modifiers = method.getModifiers();
+        return Modifier.isStatic(modifiers) && Modifier.isPublic(modifiers);
+    }
+
+    private static boolean parametersMatch(Method method, Class<?> targetClass) {
+        Class<?>[] methodParams = method.getParameterTypes();
+        return methodParams.length == 2 &&
+                methodParams[0] == OutputStream.class &&
+                methodParams[1].isAssignableFrom(targetClass);
     }
 }
