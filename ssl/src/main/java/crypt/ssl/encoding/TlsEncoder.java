@@ -35,7 +35,7 @@ public abstract class TlsEncoder {
     public static void writeHandshake(OutputStream out, HandshakeMessage handshake) throws IOException {
         ByteBuffer encodedHandshake = encodeHandshake(handshake);
 
-        IO.writeEnum(out, handshake.getContentType());
+        IO.writeEnum(out, handshake.getType());
         IO.writeInt24(out, encodedHandshake.remaining());
         IO.writeBytes(out, encodedHandshake);
     }
@@ -57,7 +57,7 @@ public abstract class TlsEncoder {
         throw new IllegalStateException(handshake.getType() + " handshake message type is not supported for encoding for now");
     }
 
-    public static void writeClientHello(OutputStream out, ClientHello clientHello) throws IOException {
+    private static void writeClientHello(OutputStream out, ClientHello clientHello) throws IOException {
         IO.writeEnum(out, clientHello.getClientVersion());
 
         writeRandom(out, clientHello.getRandom());
@@ -93,11 +93,11 @@ public abstract class TlsEncoder {
         IO.writeInt8(out, changeCipherSpec.getType());
     }
 
-    public static <T> ByteBuffer writeToBuffer(T obj, Encoder<T> encoder) throws IOException {
+    public static <T> ByteBuffer writeToBuffer(T obj, Encoder<? super T> encoder) throws IOException {
         return ByteBuffer.wrap(writeToArray(obj, encoder));
     }
 
-    public static <T> byte[] writeToArray(T obj, Encoder<T> encoder) throws IOException {
+    public static <T> byte[] writeToArray(T obj, Encoder<? super T> encoder) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         encoder.encode(bos, obj);
 
@@ -130,8 +130,10 @@ public abstract class TlsEncoder {
 
         List<Method> candidates = new ArrayList<>();
 
+        // TODO: make this work with subtypes
         for (Method method : TlsEncoder.class.getDeclaredMethods()) {
             if (Modifier.isStatic(method.getModifiers()) &&
+                    Modifier.isPublic(method.getModifiers()) &&
                     Arrays.equals(method.getParameterTypes(), targetMethodParameterTypes)) {
                 candidates.add(method);
             }

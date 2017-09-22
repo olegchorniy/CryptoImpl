@@ -20,6 +20,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
@@ -119,6 +120,7 @@ public class SslTest {
             MessageStream stream = new MessageStream(in, out);
             stream.setRecordVersion(ProtocolVersion.TLSv12);
 
+            /* Sending ClientHello */
             ClientHello clientHello = ClientHello.builder()
                     .clientVersion(ProtocolVersion.TLSv12)
                     .random(new RandomValue(gmt_unix_time(), not_random_bytes(28)))
@@ -128,10 +130,11 @@ public class SslTest {
                     .extensions(Extensions.empty())
                     .build();
 
-            //TODO: code get stuck on reading, thus sending wasn't performed successfully.
-            //TODO: pay MAXIMUM ATTENTION to buffers, especially to switching between read and write modes.
-            stream.writeMessage(ContentType.HANDSHAKE, TlsEncoder.encode(clientHello));
+            ByteBuffer clientHelloMessage = TlsEncoder.writeToBuffer(clientHello, TlsEncoder::writeHandshake);
+            stream.writeMessage(ContentType.HANDSHAKE, clientHelloMessage);
 
+            //TODO: add checks for alerts, as there will we be a lot of them
+            /* Looking what the server has sent us */
             System.out.println(stream.readMessage());
             System.out.println(stream.readMessage());
 
