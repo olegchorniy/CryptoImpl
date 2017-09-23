@@ -18,6 +18,9 @@ public class DHTest {
     }
 
     public static void main(String[] args) throws Exception {
+    }
+
+    public static void dhExample() throws Exception {
         KeyPair keyPair = newDHKeyPair(512);
 
         DHPrivateKeySpec privateKeySpec = toKeySpec(keyPair.getPrivate());

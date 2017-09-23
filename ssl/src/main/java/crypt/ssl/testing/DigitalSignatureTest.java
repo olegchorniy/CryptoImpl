@@ -1,14 +1,16 @@
 package crypt.ssl.testing;
 
 import crypt.ssl.messages.RandomValue;
-import crypt.ssl.messages.keyexchange.ServerDHParams;
+import crypt.ssl.messages.keyexchange.dh.ServerDHParams;
+import crypt.ssl.messages.keyexchange.dh.SignedDHParams;
+import crypt.ssl.signature.SignatureFactory;
 import crypt.ssl.utils.Bits;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.BigIntegers;
 
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.security.*;
+import java.security.cert.Certificate;
 import java.security.spec.RSAPublicKeySpec;
 
 public class DigitalSignatureTest {
@@ -32,13 +34,16 @@ public class DigitalSignatureTest {
         return signature;
     }
 
-    public static boolean checkSignature(RandomValue clientRandom,
-                                         RandomValue serverRandom,
-                                         ServerDHParams dhParams,
-                                         ByteBuffer signature) {
+    public static boolean checkSignature(SignedDHParams signedDHParams,
+                                         Certificate certificate,
+                                         RandomValue clientRandom,
+                                         RandomValue serverRandom) {
 
         try {
-            Signature signAlg = getInitializedSignature();
+            Signature signAlg = SignatureFactory.getInstance(signedDHParams.getSignatureAndHashAlgorithm());
+            signAlg.initVerify(certificate);
+
+            ServerDHParams dhParams = signedDHParams.getServerDHParams();
 
             update(signAlg, clientRandom);
             update(signAlg, serverRandom);
@@ -46,11 +51,12 @@ public class DigitalSignatureTest {
             update(signAlg, dhParams.getG());
             update(signAlg, dhParams.getYs());
 
-            return signAlg.verify(Bits.toArray(signature));
+            return signAlg.verify(signedDHParams.getSignature());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
+
 
     private static void update(Signature signature, RandomValue randomValue) throws SignatureException {
         signature.update(Bits.toBytes32(randomValue.getGmtUnitTime()));

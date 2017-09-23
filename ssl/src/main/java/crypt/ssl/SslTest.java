@@ -3,19 +3,20 @@ package crypt.ssl;
 import crypt.ssl.connection.MessageStream;
 import crypt.ssl.encoding.KeyExchangeDecoder;
 import crypt.ssl.encoding.TlsEncoder;
+import crypt.ssl.keyexchange.DHEKeyExchange;
+import crypt.ssl.messages.*;
 import crypt.ssl.messages.CompressionMethod;
 import crypt.ssl.messages.ContentType;
-import crypt.ssl.messages.*;
 import crypt.ssl.messages.ProtocolVersion;
 import crypt.ssl.messages.alert.Alert;
-import crypt.ssl.messages.handshake.CertificateMessage;
-import crypt.ssl.messages.handshake.ClientHello;
-import crypt.ssl.messages.handshake.ServerHello;
-import crypt.ssl.messages.handshake.ServerKeyExchange;
-import crypt.ssl.messages.keyexchange.SignedDHParams;
+import crypt.ssl.messages.handshake.*;
+import crypt.ssl.messages.keyexchange.dh.SignedDHParams;
 import crypt.ssl.testing.DigitalSignatureTest;
+import crypt.ssl.utils.CertificateDecoder;
+import crypt.ssl.utils.Dumper;
 import crypt.ssl.utils.Hex;
 import org.bouncycastle.crypto.tls.*;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -26,16 +27,23 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Random;
 
 import static org.bouncycastle.crypto.tls.CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
 
 public class SslTest {
 
-    public static void main(String[] args) throws IOException, CertificateException {
+    static {
+        Security.addProvider(new BouncyCastleProvider());
+    }
+
+    public static void main(String[] args) throws Exception {
         //sslPretendingServer();
         sslClient();
         //bcSslClient();
@@ -54,7 +62,7 @@ public class SslTest {
         }
     }
 
-    public static void bcSslClient() throws IOException {
+    public static void bcSslClient() throws Exception {
         String host = "localhost";
         int port = 8090;
         String path = "/test";
@@ -88,7 +96,7 @@ public class SslTest {
         });
     }
 
-    public static void sslClient() throws IOException {
+    public static void sslClient() throws Exception {
         String host = "localhost";
         int port = 8090;
         String path = "/test";
@@ -111,23 +119,50 @@ public class SslTest {
             ByteBuffer clientHelloMessage = TlsEncoder.encode(clientHello);
             stream.writeMessage(ContentType.HANDSHAKE, clientHelloMessage);
 
-            //TODO: add checks for alerts, as there will we be a lot of them
             /* Looking what the server has sent us */
             ServerHello serverHello = (ServerHello) checkAlert(stream.readMessage());
-            CertificateMessage certificate = (CertificateMessage) checkAlert(stream.readMessage());
-
+            CertificateMessage certificateMessage = (CertificateMessage) checkAlert(stream.readMessage());
             ServerKeyExchange serverKeyExchange = (ServerKeyExchange) checkAlert(stream.readMessage());
-            SignedDHParams dhkeParams = KeyExchangeDecoder.readDHKEParams(serverKeyExchange.getData());
-
+            // ServerHelloDone
             System.out.println(stream.readMessage());
 
-            System.out.println(DigitalSignatureTest.checkSignature(
+            /* ------- Parse certificate -------*/
+            X509Certificate certificate = getServerCertificate(certificateMessage);
+
+            /* ------- Verify signature on the server's parameters -------- */
+            SignedDHParams dhkeParams = KeyExchangeDecoder.readDHKEParams(serverKeyExchange.getData());
+            System.out.println(dhkeParams);
+
+            System.out.println("Signature verification = " + DigitalSignatureTest.checkSignature(
+                    dhkeParams,
+                    certificate,
                     clientHello.getRandom(),
-                    serverHello.getRandom(),
-                    dhkeParams.getServerDHParams(),
-                    dhkeParams.getSignature()
+                    serverHello.getRandom()
             ));
+
+            // To be able to read it one more time below
+            serverKeyExchange.getData().rewind();
+
+            /* ------- Establish common secret -------- */
+            DHEKeyExchange dhExchange = new DHEKeyExchange(null);
+
+            dhExchange.processServerCertificate(certificate);
+            dhExchange.processServerKeyExchange(serverKeyExchange);
+
+            byte[] exchangeKeys = dhExchange.generateClientKeyExchange();
+
+            ByteBuffer clientKeyExchange = TlsEncoder.encode(new ClientKeyExchange(exchangeKeys));
+            stream.writeMessage(ContentType.HANDSHAKE, clientKeyExchange);
+
+            Dumper.dumpToStdout(dhExchange.generatePreMasterSecret());
         });
+    }
+
+    private static X509Certificate getServerCertificate(CertificateMessage certificateMessage) throws CertificateException {
+        List<ASN1Certificate> certificates = certificateMessage.getCertificates();
+        byte[] x509Certificate = certificates.get(0).getContent();
+
+        return CertificateDecoder.decodeCertificate(x509Certificate);
     }
 
     private static TlsMessage checkAlert(TlsMessage message) {
@@ -259,11 +294,11 @@ public class SslTest {
         System.out.println();
     }
 
-    private static void socket(String host, int port, SocketIOConsumer ioConsumer) throws IOException {
+    private static void socket(String host, int port, SocketIOConsumer ioConsumer) throws Exception {
         socket(new InetSocketAddress(host, port), ioConsumer);
     }
 
-    private static void socket(InetSocketAddress address, SocketIOConsumer ioConsumer) throws IOException {
+    private static void socket(InetSocketAddress address, SocketIOConsumer ioConsumer) throws Exception {
         try (Socket socket = new Socket()) {
             socket.connect(address);
 
@@ -321,6 +356,6 @@ public class SslTest {
     }
 
     private interface SocketIOConsumer {
-        void consume(InputStream is, OutputStream os) throws IOException;
+        void consume(InputStream is, OutputStream os) throws Exception;
     }
 }

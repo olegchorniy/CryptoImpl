@@ -3,14 +3,12 @@ package crypt.ssl.messages.handshake;
 
 import lombok.Getter;
 
-import java.nio.ByteBuffer;
-
 @Getter
 public class ClientKeyExchange extends HandshakeMessage {
 
-    private ByteBuffer exchangeKeys;
+    private byte[] exchangeKeys;
 
-    public ClientKeyExchange(ByteBuffer exchangeKeys) {
+    public ClientKeyExchange(byte[] exchangeKeys) {
         super(HandshakeType.CLIENT_KEY_EXCHANGE);
         this.exchangeKeys = exchangeKeys;
     }

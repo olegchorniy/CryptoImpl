@@ -1,17 +1,19 @@
 package crypt.ssl.keyexchange;
 
-import crypt.ssl.messages.ASN1Certificate;
-import crypt.ssl.messages.handshake.ClientKeyExchange;
 import crypt.ssl.messages.handshake.ServerKeyExchange;
+
+import java.security.cert.X509Certificate;
 
 public interface KeyExchange {
 
     boolean requiresServerKeyExchange();
 
     // Necessary for the key encryption or for the signature verification
-    void processServerCertificate(ASN1Certificate serverCertificate);
+    void processServerCertificate(X509Certificate serverCertificate);
 
     void processServerKeyExchange(ServerKeyExchange serverKeyExchange);
 
-    ClientKeyExchange generateClientKeyExchange();
+    byte[] generateClientKeyExchange();
+
+    byte[] generatePreMasterSecret();
 }

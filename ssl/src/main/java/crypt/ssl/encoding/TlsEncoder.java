@@ -6,7 +6,6 @@ import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.handshake.*;
 import crypt.ssl.utils.IO;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -57,10 +56,11 @@ public abstract class TlsEncoder {
 
         switch (type) {
             case CLIENT_HELLO:
-                return writeToBuffer((ClientHello) handshake, TlsEncoder::writeClientHello);
+                return Encoder.writeToBuffer((ClientHello) handshake, TlsEncoder::writeClientHello);
 
             case CLIENT_KEY_EXCHANGE:
-                return ((ClientKeyExchange) handshake).getExchangeKeys();
+                byte[] exchangeKeys = ((ClientKeyExchange) handshake).getExchangeKeys();
+                return ByteBuffer.wrap(exchangeKeys);
 
             case FINISHED:
                 return ((Finished) handshake).getVerifyData();
@@ -96,30 +96,12 @@ public abstract class TlsEncoder {
         IO.writeBytes(out, sessionIdValue);
     }
 
-    /* -------------------- Adapters --------------------- */
-
-    public static <T> ByteBuffer writeToBuffer(T obj, Encoder<? super T> encoder) throws IOException {
-        return ByteBuffer.wrap(writeToArray(obj, encoder));
-    }
-
-    public static <T> byte[] writeToArray(T obj, Encoder<? super T> encoder) throws IOException {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        encoder.encode(bos, obj);
-
-        return bos.toByteArray();
-    }
-
-    public interface Encoder<T> {
-
-        void encode(OutputStream out, T t) throws IOException;
-    }
-
     /* ------------------------------- Reflection magic zone ------------------------------- */
 
     public static ByteBuffer encode(Object message) throws IOException {
         Method encoderMethod = findEncoder(message.getClass());
 
-        return writeToBuffer(message, (out, obj) -> {
+        return Encoder.writeToBuffer(message, (out, obj) -> {
             try {
                 encoderMethod.invoke(null, out, obj);
             } catch (IllegalAccessException | InvocationTargetException e) {

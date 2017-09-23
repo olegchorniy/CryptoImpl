@@ -1,8 +1,8 @@
 package crypt.ssl.encoding;
 
 import crypt.ssl.digest.HashAlgorithm;
-import crypt.ssl.messages.keyexchange.ServerDHParams;
-import crypt.ssl.messages.keyexchange.SignedDHParams;
+import crypt.ssl.messages.keyexchange.dh.ServerDHParams;
+import crypt.ssl.messages.keyexchange.dh.SignedDHParams;
 import crypt.ssl.signature.SignatureAlgorithm;
 import crypt.ssl.signature.SignatureAndHashAlgorithm;
 import crypt.ssl.utils.IO;
@@ -22,7 +22,7 @@ public abstract class KeyExchangeDecoder {
         SignatureAlgorithm signatureAlgorithm = IO.readEnum(buffer, SignatureAlgorithm.class);
 
         int sigLength = IO.readInt16(buffer);
-        ByteBuffer signature = IO.readAsBuffer(buffer, sigLength);
+        byte[] signature = IO.readBytes(buffer, sigLength);
 
         return new SignedDHParams(
                 serverDHParams,
@@ -32,17 +32,10 @@ public abstract class KeyExchangeDecoder {
     }
 
     private static ServerDHParams readServerDHParams(ByteBuffer buffer) {
-        BigInteger p = readBigInteger16(buffer);
-        BigInteger g = readBigInteger16(buffer);
-        BigInteger Ys = readBigInteger16(buffer);
+        BigInteger p = IO.readBigInteger16(buffer);
+        BigInteger g = IO.readBigInteger16(buffer);
+        BigInteger Ys = IO.readBigInteger16(buffer);
 
         return new ServerDHParams(p, g, Ys);
-    }
-
-    private static BigInteger readBigInteger16(ByteBuffer buffer) {
-        int length = IO.readInt16(buffer);
-        byte[] mag = IO.readBytes(buffer, length);
-
-        return new BigInteger(1, mag);
     }
 }

@@ -1,4 +1,4 @@
-package crypt.ssl.messages.keyexchange;
+package crypt.ssl.messages.keyexchange.dh;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

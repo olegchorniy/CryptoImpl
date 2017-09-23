@@ -2,11 +2,13 @@ package crypt.ssl.utils;
 
 import crypt.ssl.TlsExceptions;
 import crypt.ssl.messages.TlsEnum;
+import org.bouncycastle.util.BigIntegers;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 
@@ -75,6 +77,13 @@ public abstract class IO {
         while (buffer.hasRemaining()) {
             out.write(buffer.get());
         }
+    }
+
+    public static void writeBigInteger16(OutputStream out, BigInteger value) throws IOException {
+        byte[] bigIntBytes = BigIntegers.asUnsignedByteArray(value);
+
+        writeInt16(out, bigIntBytes.length);
+        writeBytes(out, bigIntBytes);
     }
 
     /* --------------------------------------------------- */
@@ -191,6 +200,13 @@ public abstract class IO {
                 "Illegal value of int size: \"" + byteSize + "\". " +
                         "Value should be between 1 and 4"
         );
+    }
+
+    public static BigInteger readBigInteger16(ByteBuffer buffer) {
+        int length = IO.readInt16(buffer);
+        byte[] mag = IO.readBytes(buffer, length);
+
+        return new BigInteger(1, mag);
     }
 
     public static byte checkedReadByte(InputStream in) throws IOException {

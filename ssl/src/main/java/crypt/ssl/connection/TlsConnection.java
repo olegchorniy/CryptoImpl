@@ -1,6 +1,7 @@
 package crypt.ssl.connection;
 
 import crypt.ssl.CipherSuite;
+import crypt.ssl.encoding.Encoder;
 import crypt.ssl.encoding.TlsEncoder;
 import crypt.ssl.exceptions.NoCloseNotifyException;
 import crypt.ssl.exceptions.TlsAlertException;
@@ -191,7 +192,7 @@ public class TlsConnection implements Connection {
 
                 //TODO: check certificate and store it's necessary parameters
 
-                this.keyExchange.processServerCertificate(certificate.getCertificates().get(0));
+                this.keyExchange.processServerCertificate(certificate.getDecodedCertificate(0));
 
                 this.handshakeState = HandshakeState.CERTIFICATE_RECEIVED;
                 return;
@@ -266,11 +267,11 @@ public class TlsConnection implements Connection {
     }
 
     private void sendClientKeyExchange() throws IOException {
-        ClientKeyExchange clientKeyExchange = this.keyExchange.generateClientKeyExchange();
+        byte[] clientKeyExchange = this.keyExchange.generateClientKeyExchange();
 
         // TODO: hmmm.. and what about parameters generation for us ???
 
-        sendMessage(clientKeyExchange, TlsEncoder::writeHandshake);
+        //sendMessage(clientKeyExchange, TlsEncoder::writeHandshake);
     }
 
     private void sendChangeCipherSpec() throws IOException {
@@ -322,7 +323,7 @@ public class TlsConnection implements Connection {
     /**
      * Helper method which serves as an adapter.
      */
-    private <T extends TlsMessage> void sendMessage(T payload, TlsEncoder.Encoder<? super T> encoder) throws IOException {
+    private <T extends TlsMessage> void sendMessage(T payload, Encoder<? super T> encoder) throws IOException {
         Message message = new Message();
         encoder.encode(message, payload);
 
