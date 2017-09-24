@@ -343,6 +343,7 @@ public class TlsConnection implements Connection {
     }
 
     private PRF getPRFInstance() {
+        // TODO: figure out how to determine hash function to be used inside of PRF correctly
         return new DigestPRF(HashAlgorithm.SHA256);
     }
 
