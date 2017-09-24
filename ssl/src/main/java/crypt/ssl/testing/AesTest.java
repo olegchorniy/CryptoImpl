@@ -1,7 +1,7 @@
 package crypt.ssl.testing;
 
-import crypt.ssl.connection.RandomGenerator;
 import crypt.ssl.utils.Dumper;
+import crypt.ssl.utils.RandomUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import javax.crypto.Cipher;
@@ -16,17 +16,17 @@ public class AesTest {
     private static final String AES_GCM_NO_PADDING = "AES/GCM/NoPadding";
     private static final String AES_CBC_PKCS_PADDING = "AES/CBC/PKCS7Padding";
 
-    private static RandomGenerator random = new RandomGenerator(new Random());
+    private static Random random = new Random();
 
     static {
         Security.addProvider(new BouncyCastleProvider());
     }
 
     public static void main(String[] args) throws Exception {
-        byte[] iv = random.getBytes(16);
-        byte[] key = random.getBytes(16);
+        byte[] iv = RandomUtils.getBytes(random, 16);
+        byte[] key = RandomUtils.getBytes(random, 16);
 
-        byte[] plainText = random.getBytes(1);
+        byte[] plainText = RandomUtils.getBytes(random, 20);
         byte[] cipherText = encrypt(plainText, key, iv);
 
         byte[] decryptedText = decrypt(cipherText, key, iv);

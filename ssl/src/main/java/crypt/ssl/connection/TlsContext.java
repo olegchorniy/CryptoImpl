@@ -4,10 +4,12 @@ package crypt.ssl.connection;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Random;
+
 @Getter
 @Setter
 public class TlsContext {
 
-    private RandomGenerator generator;
+    private Random random;
     private SecurityParameters securityParameters;
 }

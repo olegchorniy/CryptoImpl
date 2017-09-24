@@ -1,6 +1,7 @@
 package crypt.ssl;
 
 import crypt.ssl.connection.MessageStream;
+import crypt.ssl.connection.TlsConnection;
 import crypt.ssl.encoding.KeyExchangeDecoder;
 import crypt.ssl.encoding.TlsEncoder;
 import crypt.ssl.keyexchange.DHEKeyExchange;
@@ -30,10 +31,7 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 import static org.bouncycastle.crypto.tls.CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
 
@@ -45,8 +43,15 @@ public class SslTest {
 
     public static void main(String[] args) throws Exception {
         //sslPretendingServer();
-        sslClient();
+        //sslClient();
         //bcSslClient();
+        newSslClient();
+    }
+
+    public static void newSslClient() throws Exception {
+        TlsConnection connection = new TlsConnection(Collections.singletonList(CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA));
+
+        connection.connect(new InetSocketAddress("localhost", 8090));
     }
 
     public static void sslPretendingServer() throws IOException {
@@ -111,7 +116,7 @@ public class SslTest {
                     .clientVersion(ProtocolVersion.TLSv12)
                     .random(new RandomValue(gmt_unix_time(), not_random_bytes(28)))
                     .sessionId(SessionId.EMPTY)
-                    .cipherSuite(CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256)
+                    .cipherSuite(CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA)
                     .compressionMethod(CompressionMethod.NULL)
                     .extensions(Extensions.empty())
                     .build();

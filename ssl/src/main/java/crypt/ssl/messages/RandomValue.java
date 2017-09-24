@@ -1,6 +1,7 @@
 package crypt.ssl.messages;
 
 
+import crypt.ssl.utils.Bits;
 import crypt.ssl.utils.Hex;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,5 +26,9 @@ public class RandomValue {
                 "gmtUnitTime=" + Hex.toHex32(gmtUnitTime) +
                 ", randomBytes=" + Hex.toHex(randomBytes) +
                 ')';
+    }
+
+    public byte[] toByteArray() {
+        return Bits.concat(Bits.toBytes32(gmtUnitTime), randomBytes);
     }
 }

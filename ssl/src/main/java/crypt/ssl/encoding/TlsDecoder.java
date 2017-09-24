@@ -44,7 +44,7 @@ public abstract class TlsDecoder {
         ProtocolVersion version = IO.readEnum(header, ProtocolVersion.class);
 
         int length = IO.readInt16(header);
-        ByteBuffer recordBody = IO.readOrNullAsBuffer(in, length);
+        byte[] recordBody = IO.readOrNull(in, length);
 
         if (recordBody == null) {
             return null;

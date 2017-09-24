@@ -15,7 +15,12 @@ import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.alert.AlertDescription;
 import crypt.ssl.messages.alert.AlertLevel;
 import crypt.ssl.messages.handshake.*;
+import crypt.ssl.prf.DigestPRF;
+import crypt.ssl.prf.PRF;
 import crypt.ssl.utils.Assert;
+import crypt.ssl.utils.Bits;
+import crypt.ssl.utils.IO;
+import crypt.ssl.utils.RandomUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -35,7 +40,8 @@ public class TlsConnection implements Connection {
 
     // We don't support other TLS versions.
     private final ProtocolVersion version = ProtocolVersion.TLSv12;
-    private final RandomGenerator random = new RandomGenerator(new Random());
+    private final Random random = new Random();
+    private final TlsContext context;
 
     private Socket socket;
     private MessageStream messageStream;
@@ -59,6 +65,10 @@ public class TlsConnection implements Connection {
 
     public TlsConnection(List<CipherSuite> supportedCipherSuites) {
         this.supportedCipherSuites = supportedCipherSuites;
+        this.context = new TlsContext();
+
+        this.context.setSecurityParameters(this.parameters);
+        this.context.setRandom(this.random);
     }
 
     @Override
@@ -69,7 +79,7 @@ public class TlsConnection implements Connection {
         InputStream in = this.socket.getInputStream();
         OutputStream out = this.socket.getOutputStream();
 
-        this.messageStream = new MessageStream(in, out);
+        this.messageStream = new MessageStream(this.context, in, out);
         this.messageStream.setRecordVersion(this.version);
 
         performHandshake();
@@ -106,8 +116,8 @@ public class TlsConnection implements Connection {
 
     private RandomValue generateRandom() {
         return RandomValue.builder()
-                .gmtUnitTime(random.randomInt())
-                .randomBytes(random.getBytes(28))
+                .gmtUnitTime(random.nextInt())
+                .randomBytes(RandomUtils.getBytes(random, 28))
                 .build();
     }
 
@@ -126,6 +136,11 @@ public class TlsConnection implements Connection {
     }
 
     private void handleMessage(TlsMessage message) throws IOException {
+        System.out.println("Connection state = " + this.state);
+        System.out.println("Handshake state = " + this.handshakeState);
+        System.out.println("Message = " + message.toString());
+        System.out.println();
+
         switch (message.getContentType()) {
             case HANDSHAKE:
                 handleHandshakeMessage((HandshakeMessage) message);
@@ -160,10 +175,12 @@ public class TlsConnection implements Connection {
                 Assert.assertEquals(CompressionMethod.NULL, serverHello.getCompressionMethod());
                 Assert.assertEquals(this.version, serverHello.getServerVersion());
 
-                this.parameters.setServerRandom(serverHello.getRandom());
-
                 CipherSuite cipherSuite = serverHello.getCipherSuite();
 
+                this.parameters.setServerRandom(serverHello.getRandom());
+                this.parameters.setCipherSuite(cipherSuite);
+
+                //TODO: we don't need this for abbreviated handshake
                 this.keyExchange = createKeyExchange(cipherSuite.getKeyExchangeType());
 
                 //TODO: For abbreviated handshake:
@@ -243,8 +260,7 @@ public class TlsConnection implements Connection {
     private KeyExchange createKeyExchange(KeyExchangeType type) {
         switch (type) {
             case DHE:
-                //TODO: pass TlsContext here
-                return new DHEKeyExchange(null);
+                return new DHEKeyExchange(this.context);
         }
 
         throw new UnsupportedOperationException(type + " is not supported yet");
@@ -256,7 +272,57 @@ public class TlsConnection implements Connection {
 
         sendClientKeyExchange();
         sendChangeCipherSpec();
+
+        /* We need to calculate keys now because following messages should be encrypted */
+        byte[] preMasterSecret = this.keyExchange.generatePreMasterSecret();
+        initializeEncryption(preMasterSecret);
+
+        /* Send first encrypted message */
         sendFinished();
+    }
+
+    private void initializeEncryption(byte[] preMasterSecret) {
+        CipherSuite cipherSuite = parameters.getCipherSuite();
+
+        int macSize = cipherSuite.getMacKeySize();
+        int encryptionKeySize = cipherSuite.getEncryptionKeySize();
+        int fixedIvSize = cipherSuite.getFixedIvSize();
+
+        byte[] masterSecret = calculateMasterSecret(preMasterSecret);
+        byte[] keyMaterial = generateKeyMaterial(masterSecret, (macSize + encryptionKeySize + fixedIvSize) * 2);
+
+        ByteBuffer keysBuffer = ByteBuffer.wrap(keyMaterial);
+
+        byte[] clientMacKey = IO.readBytes(keysBuffer, macSize);
+        byte[] serverMacKey = IO.readBytes(keysBuffer, macSize);
+        byte[] clientEncKey = IO.readBytes(keysBuffer, encryptionKeySize);
+        byte[] serverEncKey = IO.readBytes(keysBuffer, encryptionKeySize);
+        byte[] clientIv = IO.readBytes(keysBuffer, fixedIvSize);
+        byte[] serverIv = IO.readBytes(keysBuffer, fixedIvSize);
+
+        KeyParameters clientKeyParams = new KeyParameters(clientMacKey, clientEncKey, clientIv);
+        KeyParameters serverKeyParams = new KeyParameters(serverMacKey, serverEncKey, serverIv);
+
+        this.messageStream.initEncryption(clientKeyParams, serverKeyParams);
+    }
+
+    private byte[] calculateMasterSecret(byte[] preMasterSecret) {
+        return getPRFInstance().compute(preMasterSecret, "master secret", getPRFSeed(), 48);
+    }
+
+    private byte[] generateKeyMaterial(byte[] masterSecret, int size) {
+        return getPRFInstance().compute(masterSecret, "key expansion", getPRFSeed(), size);
+    }
+
+    private byte[] getPRFSeed() {
+        RandomValue clientRandom = this.parameters.getClientRandom();
+        RandomValue serverRandom = this.parameters.getServerRandom();
+
+        return Bits.concat(clientRandom.toByteArray(), serverRandom.toByteArray());
+    }
+
+    private PRF getPRFInstance() {
+        return new DigestPRF(this.parameters.getCipherSuite().getHashAlgorithm());
     }
 
     private void continueAbbreviatedHandshake() throws IOException {
@@ -267,11 +333,8 @@ public class TlsConnection implements Connection {
     }
 
     private void sendClientKeyExchange() throws IOException {
-        byte[] clientKeyExchange = this.keyExchange.generateClientKeyExchange();
-
-        // TODO: hmmm.. and what about parameters generation for us ???
-
-        //sendMessage(clientKeyExchange, TlsEncoder::writeHandshake);
+        byte[] exchangeKeys = this.keyExchange.generateClientKeyExchange();
+        sendMessage(new ClientKeyExchange(exchangeKeys), TlsEncoder::writeHandshake);
     }
 
     private void sendChangeCipherSpec() throws IOException {

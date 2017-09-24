@@ -26,9 +26,9 @@ public abstract class TlsEncoder {
         IO.writeEnum(out, record.getType());
         IO.writeEnum(out, record.getVersion());
 
-        ByteBuffer recordBody = record.getRecordBody();
+        byte[] recordBody = record.getRecordBody();
 
-        IO.writeInt16(out, recordBody.remaining());
+        IO.writeInt16(out, recordBody.length);
         IO.writeBytes(out, recordBody);
     }
 

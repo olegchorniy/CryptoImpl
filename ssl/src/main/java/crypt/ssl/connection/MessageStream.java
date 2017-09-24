@@ -1,5 +1,8 @@
 package crypt.ssl.connection;
 
+import crypt.ssl.CipherSuite;
+import crypt.ssl.cipher.BlockCipher;
+import crypt.ssl.cipher.TlsCipher;
 import crypt.ssl.encoding.TlsDecoder;
 import crypt.ssl.encoding.TlsEncoder;
 import crypt.ssl.messages.*;
@@ -27,19 +30,40 @@ public class MessageStream {
 
     private final InputStream in;
     private final OutputStream out;
+    private final TlsContext context;
+
+    private TlsCipher readCipher;
+    private TlsCipher writeCipher;
 
     private ProtocolVersion recordVersion;
 
     private final Buffer messagesBuffer = new Buffer();
     private ContentType lastContentType = null;
 
-    public MessageStream(InputStream in, OutputStream out) {
+    public MessageStream(TlsContext context, InputStream in, OutputStream out) {
+        this.context = context;
         this.in = in;
         this.out = out;
     }
 
     public void setRecordVersion(ProtocolVersion recordVersion) {
         this.recordVersion = recordVersion;
+    }
+
+    public void initEncryption(KeyParameters clientParams, KeyParameters serverParameters) {
+        CipherSuite suite = this.context.getSecurityParameters().getCipherSuite();
+
+        this.writeCipher = createCipher(suite, clientParams);
+        //this.readCipher = createCipher(suite, serverParameters);
+    }
+
+    private TlsCipher createCipher(CipherSuite suite, KeyParameters keyParameters) {
+        switch (suite.getCipherType()) {
+            case BLOCK_CIPHER:
+                return new BlockCipher(this.context, keyParameters);
+        }
+
+        return null;
     }
 
     public TlsMessage readMessage() throws IOException {
@@ -164,11 +188,13 @@ public class MessageStream {
         }
 
         ContentType contentType = record.getType();
-        ByteBuffer recordBody = record.getRecordBody();
+        byte[] recordBody = record.getRecordBody();
 
         checkContentType(contentType);
 
-        //TODO: decrypt data here, when encryption is implemented
+        if (this.readCipher != null) {
+            recordBody = this.readCipher.decrypt(recordBody);
+        }
 
         this.messagesBuffer.putBytes(recordBody);
         this.lastContentType = contentType;
@@ -185,11 +211,16 @@ public class MessageStream {
     public void writeMessage(ContentType type, ByteBuffer data) throws IOException {
         while (data.hasRemaining()) {
             int recordLength = min(data.remaining(), COMPRESSED_MAX_LENGTH);
-            ByteBuffer recordData = IO.readAsBuffer(data, recordLength);
+            byte[] recordData = IO.readBytes(data, recordLength);
 
-            //TODO: add encryption
+            TlsRecord record = new TlsRecord(type, this.recordVersion, recordData);
 
-            TlsEncoder.writeRecord(out, new TlsRecord(type, this.recordVersion, recordData));
+            if (this.writeCipher != null) {
+                byte[] encryptedContent = this.writeCipher.encrypt(record);
+                record.setRecordBody(encryptedContent);
+            }
+
+            TlsEncoder.writeRecord(out, record);
         }
     }
 }

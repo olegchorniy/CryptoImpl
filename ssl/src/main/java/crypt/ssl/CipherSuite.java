@@ -20,13 +20,24 @@ public enum CipherSuite implements TlsEnum {
     TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 (0xC031),
     TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA   (0xC02F),
 
+    TLS_DHE_RSA_WITH_AES_128_CBC_SHA     (0x0033,
+            KeyExchangeType.DHE,
+            HashAlgorithm.SHA1,
+            CipherType.BLOCK_CIPHER,
+            BulkCipherAlgorithm.AES,
+            16,
+            16,
+            16
+    ),
+
     TLS_DHE_RSA_WITH_AES_128_GCM_SHA256  (0x009E,
             KeyExchangeType.DHE,
             HashAlgorithm.SHA256,
             CipherType.AEAD_CIPHER,
             BulkCipherAlgorithm.AES,
-            128,
-            256
+            16,
+            0,
+            16
     ),
 
     TLS_RSA_WITH_AES_128_CBC_SHA256      (0x003C,
@@ -34,8 +45,9 @@ public enum CipherSuite implements TlsEnum {
             HashAlgorithm.SHA256,
             CipherType.BLOCK_CIPHER,
             BulkCipherAlgorithm.AES,
-            128,
-            256
+            16,
+            32,
+            16
     ),
 
     TLS_RSA_WITH_AES_128_GCM_SHA256      (0x009C,
@@ -43,8 +55,9 @@ public enum CipherSuite implements TlsEnum {
             HashAlgorithm.SHA256,
             CipherType.AEAD_CIPHER,
             BulkCipherAlgorithm.AES,
-            128,
-            256
+            16,
+            0,
+            16
     );
 
     // @formatter:on
@@ -61,8 +74,10 @@ public enum CipherSuite implements TlsEnum {
     //in TLS is the same as the length of the corresponding hash function output
     private final int macKeySize;
 
+    private final int blockSize;
+
     CipherSuite(int value) {
-        this(value, null, null, null, null, -1, -1);
+        this(value, null, null, null, null, -1, -1, -1);
     }
 
     CipherSuite(int value,
@@ -71,7 +86,8 @@ public enum CipherSuite implements TlsEnum {
                 CipherType cipherType,
                 BulkCipherAlgorithm bulkCipherAlgorithm,
                 int encryptionKeySize,
-                int macKeySize) {
+                int macKeySize,
+                int blockSize) {
         this.value = value;
         this.keyExchangeType = keyExchangeType;
         this.hashAlgorithm = hashAlgorithm;
@@ -79,5 +95,11 @@ public enum CipherSuite implements TlsEnum {
         this.bulkCipherAlgorithm = bulkCipherAlgorithm;
         this.encryptionKeySize = encryptionKeySize;
         this.macKeySize = macKeySize;
+        this.blockSize = blockSize;
+    }
+
+    //TODO: define properly
+    public int getFixedIvSize() {
+        return 0;
     }
 }
