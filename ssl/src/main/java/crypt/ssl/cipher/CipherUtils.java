@@ -21,7 +21,7 @@ public abstract class CipherUtils {
             Cipher cipher = CipherFactory.getCipher(suite);
 
             IvParameterSpec ivParam = new IvParameterSpec(iv);
-            SecretKeySpec keyParam = new SecretKeySpec(iv, cipher.getAlgorithm());
+            SecretKeySpec keyParam = new SecretKeySpec(key, cipher.getAlgorithm());
 
             cipher.init(Cipher.ENCRYPT_MODE, keyParam, ivParam);
 

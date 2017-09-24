@@ -8,6 +8,7 @@ import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.alert.AlertDescription;
 import crypt.ssl.messages.alert.AlertLevel;
 import crypt.ssl.messages.handshake.*;
+import crypt.ssl.utils.Assert;
 import crypt.ssl.utils.Dumper;
 import crypt.ssl.utils.IO;
 
@@ -63,6 +64,15 @@ public abstract class TlsDecoder {
     public static ChangeCipherSpec readChangeCipherSpec(ByteBuffer source) {
         int type = IO.readInt8(source);
         return new ChangeCipherSpec(type);
+    }
+
+    public static HandshakeMessage readHandshake(ByteBuffer handshakeBuffer) {
+        HandshakeType type = IO.readEnum(handshakeBuffer, HandshakeType.class);
+        int length = IO.readInt24(handshakeBuffer);
+
+        Assert.assertEquals(handshakeBuffer.remaining(), length);
+
+        return readHandshakeOfType(type, handshakeBuffer);
     }
 
     public static HandshakeMessage readHandshakeOfType(HandshakeType type, ByteBuffer handshakeBuffer) {

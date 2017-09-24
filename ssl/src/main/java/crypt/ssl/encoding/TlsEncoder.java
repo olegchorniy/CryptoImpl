@@ -63,7 +63,8 @@ public abstract class TlsEncoder {
                 return ByteBuffer.wrap(exchangeKeys);
 
             case FINISHED:
-                return ((Finished) handshake).getVerifyData();
+                byte[] verifyData = ((Finished) handshake).getVerifyData();
+                return ByteBuffer.wrap(verifyData);
         }
 
         throw new IllegalStateException(handshake.getType() + " handshake message type is not supported for encoding for now");

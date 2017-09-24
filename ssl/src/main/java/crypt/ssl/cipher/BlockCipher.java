@@ -60,11 +60,7 @@ public class BlockCipher implements TlsCipher {
 
     private void addPadding(OutputStream out, int contentLength) throws IOException {
         int blockLength = this.cipherSuite.getBlockSize();
-        int paddingLength = contentLength % blockLength;
-
-        if (paddingLength == 0) {
-            paddingLength = blockLength;
-        }
+        int paddingLength = blockLength - contentLength % blockLength;
 
         for (int i = 0; i < paddingLength; i++) {
             out.write(paddingLength - 1);

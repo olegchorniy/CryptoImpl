@@ -12,6 +12,7 @@ public class SecurityParameters {
     private RandomValue clientRandom;
     private RandomValue serverRandom;
     private CipherSuite cipherSuite;
+    private byte[] masterSecret;
     /*
       ConnectionEnd          entity;
     s PRFAlgorithm           prf_algorithm;

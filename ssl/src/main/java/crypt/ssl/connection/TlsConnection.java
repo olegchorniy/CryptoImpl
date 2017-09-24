@@ -1,7 +1,10 @@
 package crypt.ssl.connection;
 
 import crypt.ssl.CipherSuite;
+import crypt.ssl.digest.DigestFactory;
+import crypt.ssl.digest.HashAlgorithm;
 import crypt.ssl.encoding.Encoder;
+import crypt.ssl.encoding.TlsDecoder;
 import crypt.ssl.encoding.TlsEncoder;
 import crypt.ssl.exceptions.NoCloseNotifyException;
 import crypt.ssl.exceptions.TlsAlertException;
@@ -17,10 +20,8 @@ import crypt.ssl.messages.alert.AlertLevel;
 import crypt.ssl.messages.handshake.*;
 import crypt.ssl.prf.DigestPRF;
 import crypt.ssl.prf.PRF;
-import crypt.ssl.utils.Assert;
-import crypt.ssl.utils.Bits;
-import crypt.ssl.utils.IO;
-import crypt.ssl.utils.RandomUtils;
+import crypt.ssl.utils.*;
+import org.bouncycastle.crypto.Digest;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -55,6 +56,8 @@ public class TlsConnection implements Connection {
     private KeyExchange keyExchange;
 
     private final Buffer applicationDataBuffer = new Buffer();
+    // Used to compute hashes for Finished messages
+    private final Buffer handshakeMessages = new Buffer();
 
     /* -------------------------------------------------- */
 
@@ -122,7 +125,7 @@ public class TlsConnection implements Connection {
     }
 
     private void readAndHandleMessage() throws IOException {
-        TlsMessage message = this.messageStream.readMessage();
+        RawMessage message = this.messageStream.readMessage();
         if (message == null) {
             throw new NoCloseNotifyException();
         }
@@ -135,27 +138,30 @@ public class TlsConnection implements Connection {
         }
     }
 
-    private void handleMessage(TlsMessage message) throws IOException {
+    private void handleMessage(RawMessage message) throws IOException {
         System.out.println("Connection state = " + this.state);
         System.out.println("Handshake state = " + this.handshakeState);
         System.out.println("Message = " + message.toString());
-        System.out.println();
+
+        ByteBuffer body = message.getMessageBody();
 
         switch (message.getContentType()) {
             case HANDSHAKE:
-                handleHandshakeMessage((HandshakeMessage) message);
+                saveHandshakeMessage(body);
+
+                handleHandshakeMessage(TlsDecoder.readHandshake(body));
                 break;
 
             case CHANGE_CIPHER_SPEC:
-                handleChangeCipherSpec((ChangeCipherSpec) message);
+                handleChangeCipherSpec(TlsDecoder.readChangeCipherSpec(body));
                 break;
 
             case APPLICATION_DATA:
-                handleApplicationData((ApplicationData) message);
+                handleApplicationData(new ApplicationData(body));
                 break;
 
             case ALERT:
-                handleAlertMessage((Alert) message);
+                handleAlertMessage(TlsDecoder.readAlert(body));
                 break;
         }
     }
@@ -289,7 +295,17 @@ public class TlsConnection implements Connection {
         int fixedIvSize = cipherSuite.getFixedIvSize();
 
         byte[] masterSecret = calculateMasterSecret(preMasterSecret);
+
+        System.out.println("PreMasterSecret:");
+        Dumper.dumpToStdout(preMasterSecret);
+
+        System.out.println("MasterSecret:");
+        Dumper.dumpToStdout(masterSecret);
+
         byte[] keyMaterial = generateKeyMaterial(masterSecret, (macSize + encryptionKeySize + fixedIvSize) * 2);
+
+        System.out.println("Key material:");
+        Dumper.dumpToStdout(keyMaterial);
 
         ByteBuffer keysBuffer = ByteBuffer.wrap(keyMaterial);
 
@@ -303,26 +319,31 @@ public class TlsConnection implements Connection {
         KeyParameters clientKeyParams = new KeyParameters(clientMacKey, clientEncKey, clientIv);
         KeyParameters serverKeyParams = new KeyParameters(serverMacKey, serverEncKey, serverIv);
 
+        System.out.println("clientKeyParams = " + clientKeyParams);
+        System.out.println("serverKeyParams = " + serverKeyParams);
+
+        this.parameters.setMasterSecret(masterSecret);
         this.messageStream.initEncryption(clientKeyParams, serverKeyParams);
     }
 
     private byte[] calculateMasterSecret(byte[] preMasterSecret) {
-        return getPRFInstance().compute(preMasterSecret, "master secret", getPRFSeed(), 48);
+        byte[] seed = concatRandoms(this.parameters.getClientRandom(), this.parameters.getServerRandom());
+
+        return getPRFInstance().compute(preMasterSecret, "master secret", seed, 48);
     }
 
     private byte[] generateKeyMaterial(byte[] masterSecret, int size) {
-        return getPRFInstance().compute(masterSecret, "key expansion", getPRFSeed(), size);
+        byte[] seed = concatRandoms(this.parameters.getServerRandom(), this.parameters.getClientRandom());
+
+        return getPRFInstance().compute(masterSecret, "key expansion", seed, size);
     }
 
-    private byte[] getPRFSeed() {
-        RandomValue clientRandom = this.parameters.getClientRandom();
-        RandomValue serverRandom = this.parameters.getServerRandom();
-
-        return Bits.concat(clientRandom.toByteArray(), serverRandom.toByteArray());
+    private byte[] concatRandoms(RandomValue first, RandomValue second) {
+        return Bits.concat(first.toByteArray(), second.toByteArray());
     }
 
     private PRF getPRFInstance() {
-        return new DigestPRF(this.parameters.getCipherSuite().getHashAlgorithm());
+        return new DigestPRF(HashAlgorithm.SHA256);
     }
 
     private void continueAbbreviatedHandshake() throws IOException {
@@ -342,8 +363,14 @@ public class TlsConnection implements Connection {
     }
 
     private void sendFinished() throws IOException {
+        byte[] masterSecret = this.parameters.getMasterSecret();
+        byte[] handshakesHash = computeHandshakesHash();
+        byte[] verifyData = getPRFInstance().compute(masterSecret, "client finished", handshakesHash, 12);
 
-        //sendMessage(, );
+        System.out.println("handshakesHash = " + Hex.toHex(handshakesHash));
+        System.out.println("verifyData = " + Hex.toHex(verifyData));
+
+        sendMessage(new Finished(verifyData), TlsEncoder::writeHandshake);
     }
 
     private void handleChangeCipherSpec(ChangeCipherSpec changeCipherSpec) throws IOException {
@@ -390,7 +417,15 @@ public class TlsConnection implements Connection {
         Message message = new Message();
         encoder.encode(message, payload);
 
-        this.messageStream.writeMessage(payload.getContentType(), message.toBuffer());
+        ContentType type = payload.getContentType();
+        byte[] messageBytes = message.toByteArray();
+
+        if (type == ContentType.HANDSHAKE) {
+            // Update digest which will be used to form a Finished message.
+            saveHandshakeMessage(messageBytes);
+        }
+
+        this.messageStream.writeMessage(type, ByteBuffer.wrap(messageBytes));
     }
 
     @Override
@@ -406,6 +441,26 @@ public class TlsConnection implements Connection {
     @Override
     public void close() throws IOException {
         closeInternal();
+    }
+
+    private void saveHandshakeMessage(ByteBuffer buffer) {
+        saveHandshakeMessage(Bits.toArray(buffer));
+    }
+
+    private void saveHandshakeMessage(byte[] bytes) {
+        this.handshakeMessages.putBytes(bytes);
+    }
+
+    private byte[] computeHandshakesHash() {
+        Digest digest = DigestFactory.createDigest(this.parameters.getCipherSuite().getHashAlgorithm());
+
+        byte[] handshakesBytes = Bits.toArray(this.handshakeMessages.peekBytes());
+        digest.update(handshakesBytes, 0, handshakesBytes.length);
+
+        byte[] out = new byte[digest.getDigestSize()];
+        digest.doFinal(out, 0);
+
+        return out;
     }
 
     private static <T> T safeCast(Object object, Class<T> clazz) throws TlsException {

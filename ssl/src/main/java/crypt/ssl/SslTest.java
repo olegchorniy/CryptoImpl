@@ -2,19 +2,15 @@ package crypt.ssl;
 
 import crypt.ssl.connection.MessageStream;
 import crypt.ssl.connection.TlsConnection;
-import crypt.ssl.encoding.KeyExchangeDecoder;
 import crypt.ssl.encoding.TlsEncoder;
-import crypt.ssl.keyexchange.DHEKeyExchange;
 import crypt.ssl.messages.*;
 import crypt.ssl.messages.CompressionMethod;
 import crypt.ssl.messages.ContentType;
 import crypt.ssl.messages.ProtocolVersion;
 import crypt.ssl.messages.alert.Alert;
-import crypt.ssl.messages.handshake.*;
-import crypt.ssl.messages.keyexchange.dh.SignedDHParams;
-import crypt.ssl.testing.DigitalSignatureTest;
+import crypt.ssl.messages.handshake.CertificateMessage;
+import crypt.ssl.messages.handshake.ClientHello;
 import crypt.ssl.utils.CertificateDecoder;
-import crypt.ssl.utils.Dumper;
 import crypt.ssl.utils.Hex;
 import org.bouncycastle.crypto.tls.*;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -33,7 +29,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.*;
 
-import static org.bouncycastle.crypto.tls.CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
+import static org.bouncycastle.crypto.tls.CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
 
 public class SslTest {
 
@@ -81,7 +77,7 @@ public class SslTest {
                 @Override
                 public int[] getCipherSuites() {
                     return new int[]{
-                            TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+                            TLS_DHE_RSA_WITH_AES_128_CBC_SHA
                     };
                 }
 
@@ -108,7 +104,7 @@ public class SslTest {
 
         socket(host, port, (in, out) -> {
 
-            MessageStream stream = new MessageStream(in, out);
+            MessageStream stream = new MessageStream(null, in, out);
             stream.setRecordVersion(ProtocolVersion.TLSv12);
 
             /* Sending ClientHello */
@@ -125,16 +121,16 @@ public class SslTest {
             stream.writeMessage(ContentType.HANDSHAKE, clientHelloMessage);
 
             /* Looking what the server has sent us */
-            ServerHello serverHello = (ServerHello) checkAlert(stream.readMessage());
+            /*ServerHello serverHello = (ServerHello) checkAlert(stream.readMessage());
             CertificateMessage certificateMessage = (CertificateMessage) checkAlert(stream.readMessage());
             ServerKeyExchange serverKeyExchange = (ServerKeyExchange) checkAlert(stream.readMessage());
             // ServerHelloDone
             System.out.println(stream.readMessage());
 
-            /* ------- Parse certificate -------*/
+            *//* ------- Parse certificate -------*//*
             X509Certificate certificate = getServerCertificate(certificateMessage);
 
-            /* ------- Verify signature on the server's parameters -------- */
+            *//* ------- Verify signature on the server's parameters -------- *//*
             SignedDHParams dhkeParams = KeyExchangeDecoder.readDHKEParams(serverKeyExchange.getData());
             System.out.println(dhkeParams);
 
@@ -148,7 +144,7 @@ public class SslTest {
             // To be able to read it one more time below
             serverKeyExchange.getData().rewind();
 
-            /* ------- Establish common secret -------- */
+            *//* ------- Establish common secret -------- *//*
             DHEKeyExchange dhExchange = new DHEKeyExchange(null);
 
             dhExchange.processServerCertificate(certificate);
@@ -159,7 +155,7 @@ public class SslTest {
             ByteBuffer clientKeyExchange = TlsEncoder.encode(new ClientKeyExchange(exchangeKeys));
             stream.writeMessage(ContentType.HANDSHAKE, clientKeyExchange);
 
-            Dumper.dumpToStdout(dhExchange.generatePreMasterSecret());
+            Dumper.dumpToStdout(dhExchange.generatePreMasterSecret());*/
         });
     }
 

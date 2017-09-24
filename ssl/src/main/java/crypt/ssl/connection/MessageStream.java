@@ -5,9 +5,10 @@ import crypt.ssl.cipher.BlockCipher;
 import crypt.ssl.cipher.TlsCipher;
 import crypt.ssl.encoding.TlsDecoder;
 import crypt.ssl.encoding.TlsEncoder;
-import crypt.ssl.messages.*;
-import crypt.ssl.messages.alert.Alert;
-import crypt.ssl.messages.handshake.HandshakeMessage;
+import crypt.ssl.messages.ContentType;
+import crypt.ssl.messages.ProtocolVersion;
+import crypt.ssl.messages.RawMessage;
+import crypt.ssl.messages.TlsRecord;
 import crypt.ssl.messages.handshake.HandshakeType;
 import crypt.ssl.utils.Assert;
 import crypt.ssl.utils.IO;
@@ -66,9 +67,9 @@ public class MessageStream {
         return null;
     }
 
-    public TlsMessage readMessage() throws IOException {
+    public RawMessage readMessage() throws IOException {
         while (true) {
-            TlsMessage message = tryReadMessage();
+            RawMessage message = tryReadMessage();
 
             if (message != null) {
                 // there was enough data in the buffer to deserialize a message
@@ -85,7 +86,7 @@ public class MessageStream {
         }
     }
 
-    private TlsMessage tryReadMessage() {
+    private RawMessage tryReadMessage() {
         if (this.lastContentType == null) {
             // buffer should be empty because we either didn't have previous messages
             // or we should have cleared this field below if the buffer is exhausted
@@ -94,12 +95,14 @@ public class MessageStream {
             return null;
         }
 
-        TlsMessage message = tryReadMessageOfType(this.lastContentType);
-        if (message == null) {
+        ByteBuffer messageBody = tryReadMessageBody(this.lastContentType);
+        if (messageBody == null) {
             // Attempt to read a message from available in the buffer data has failed.
             // We need to read more data from the underlying stream to reconstruct a message.
             return null;
         }
+
+        RawMessage message = new RawMessage(this.lastContentType, messageBody);
 
         if (this.messagesBuffer.isEmpty()) {
             // we are ready to receive messages of a new content type,
@@ -110,7 +113,7 @@ public class MessageStream {
         return message;
     }
 
-    private TlsMessage tryReadMessageOfType(ContentType type) {
+    private ByteBuffer tryReadMessageBody(ContentType type) {
 
         //TODO: add check of the message length
 
@@ -131,16 +134,15 @@ public class MessageStream {
         }
     }
 
-    private Alert tryReadAlert() {
+    private ByteBuffer tryReadAlert() {
         if (this.messagesBuffer.available() < TLS_ALERT_LENGTH) {
             return null;
         }
 
-        ByteBuffer alertBody = this.messagesBuffer.getBytes(TLS_ALERT_LENGTH);
-        return TlsDecoder.readAlert(alertBody);
+        return this.messagesBuffer.getBytes(TLS_ALERT_LENGTH);
     }
 
-    private HandshakeMessage tryReadHandshake() {
+    private ByteBuffer tryReadHandshake() {
         int available = this.messagesBuffer.available();
 
         if (available < TLS_HANDSHAKE_HEADER_LENGTH) {
@@ -156,29 +158,23 @@ public class MessageStream {
             return null;
         }
 
-        // we've already read it from the buffer
-        this.messagesBuffer.skip(TLS_HANDSHAKE_HEADER_LENGTH);
-
-        ByteBuffer body = this.messagesBuffer.getBytes(handshakeLength);
-
-        return TlsDecoder.readHandshakeOfType(type, body);
+        return this.messagesBuffer.getBytes(TLS_HANDSHAKE_HEADER_LENGTH + handshakeLength);
     }
 
-    private ApplicationData tryReadApplicationData() {
+    private ByteBuffer tryReadApplicationData() {
         if (this.messagesBuffer.isEmpty()) {
             return null;
         }
 
-        return new ApplicationData(this.messagesBuffer.getBytes());
+        return this.messagesBuffer.getBytes();
     }
 
-    private ChangeCipherSpec tryReadChangeCipherSpec() {
+    private ByteBuffer tryReadChangeCipherSpec() {
         if (this.messagesBuffer.available() < TLS_CHANGE_CIPHER_SPEC_LENGTH) {
             return null;
         }
 
-        ByteBuffer body = this.messagesBuffer.getBytes(TLS_CHANGE_CIPHER_SPEC_LENGTH);
-        return TlsDecoder.readChangeCipherSpec(body);
+        return this.messagesBuffer.getBytes(TLS_CHANGE_CIPHER_SPEC_LENGTH);
     }
 
     private boolean readRecordIntoBuffer() throws IOException {

@@ -26,7 +26,7 @@ public enum CipherSuite implements TlsEnum {
             CipherType.BLOCK_CIPHER,
             BulkCipherAlgorithm.AES,
             16,
-            16,
+            20,
             16
     ),
 
