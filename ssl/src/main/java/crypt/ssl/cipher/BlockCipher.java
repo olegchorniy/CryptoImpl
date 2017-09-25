@@ -6,6 +6,8 @@ import crypt.ssl.connection.TlsContext;
 import crypt.ssl.encoding.Encoder;
 import crypt.ssl.encoding.TlsEncoder;
 import crypt.ssl.mac.MacFactory;
+import crypt.ssl.messages.ContentType;
+import crypt.ssl.messages.ProtocolVersion;
 import crypt.ssl.messages.TlsRecord;
 import crypt.ssl.utils.Bits;
 import crypt.ssl.utils.RandomUtils;
@@ -39,14 +41,13 @@ public class BlockCipher implements TlsCipher {
       };
      */
     @Override
-    public byte[] encrypt(TlsRecord compressedRecord) {
+    public byte[] encrypt(ContentType type, ProtocolVersion version, byte[] data) {
         byte[] iv = generateIv();
         byte[] key = this.keyParams.getEncryptionKey();
 
-        byte[] content = compressedRecord.getRecordBody();
-        byte[] mac = calculateMac(compressedRecord);
+        byte[] mac = calculateMac(new TlsRecord(type, version, data));
 
-        int plainTextLength = content.length + mac.length;
+        int plainTextLength = data.length + mac.length;
 
         // Calculate padding length
         int blockLength = this.cipherSuite.getBlockSize();
@@ -55,8 +56,8 @@ public class BlockCipher implements TlsCipher {
         // Prepare encryption input
         byte[] input = new byte[plainTextLength + paddingLength];
 
-        System.arraycopy(content, 0, input, 0, content.length);
-        System.arraycopy(mac, 0, input, content.length, mac.length);
+        System.arraycopy(data, 0, input, 0, data.length);
+        System.arraycopy(mac, 0, input, data.length, mac.length);
         addPadding(input, plainTextLength, paddingLength);
 
         // Encrypt data
@@ -74,24 +75,23 @@ public class BlockCipher implements TlsCipher {
         Record structure: iv | [content | mac | padding]
      */
     @Override
-    public byte[] decrypt(TlsRecord encryptedRecord) {
-        byte[] encryptedContent = encryptedRecord.getRecordBody();
-        if (encryptedContent.length == 0) {
-            //TODO: I know about possible empty encrypted messages. But should the IV be present regardless of the message length?
-            return encryptedContent;
+    public byte[] decrypt(ContentType type, ProtocolVersion version, byte[] data) {
+        if (data.length == 0) {
+            //TODO: I know about possible empty encrypted messages. But should the IV be present though?
+            return data;
         }
 
         int blockSize = this.cipherSuite.getBlockSize();
 
-        if (encryptedContent.length % blockSize != 0) {
+        if (data.length % blockSize != 0) {
             throw new RuntimeException("Bad padding or ... whatever");
         }
 
         // 0. Prepare parameters and decrypt record
-        byte[] iv = Arrays.copyOfRange(encryptedContent, 0, blockSize);
+        byte[] iv = Arrays.copyOfRange(data, 0, blockSize);
         byte[] key = this.keyParams.getEncryptionKey();
 
-        byte[] input = Arrays.copyOfRange(encryptedContent, blockSize, encryptedContent.length);
+        byte[] input = Arrays.copyOfRange(data, blockSize, data.length);
         byte[] plainText = CipherUtils.decrypt(this.cipherSuite, iv, key, input);
 
         // 1. Check padding
@@ -103,13 +103,7 @@ public class BlockCipher implements TlsCipher {
         byte[] content = Arrays.copyOfRange(plainText, 0, paddingStart - macLength);
         byte[] mac = Arrays.copyOfRange(plainText, content.length, paddingStart);
 
-        TlsRecord decryptedRecord = new TlsRecord(
-                encryptedRecord.getType(),
-                encryptedRecord.getVersion(),
-                content
-        );
-
-        if (!Arrays.equals(mac, calculateMac(decryptedRecord))) {
+        if (!Arrays.equals(mac, calculateMac(new TlsRecord(type, version, content)))) {
             throw new RuntimeException("Bad mac");
         }
 

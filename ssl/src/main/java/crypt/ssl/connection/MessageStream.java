@@ -193,12 +193,13 @@ public class MessageStream {
         }
 
         ContentType contentType = record.getType();
+        ProtocolVersion version = record.getVersion();
         byte[] recordBody = record.getRecordBody();
 
         checkContentType(contentType);
 
         if (this.readCipher != null) {
-            recordBody = this.readCipher.decrypt(record);
+            recordBody = this.readCipher.decrypt(contentType, version, recordBody);
         }
 
         this.messagesBuffer.putBytes(recordBody);
@@ -218,14 +219,11 @@ public class MessageStream {
             int recordLength = min(data.remaining(), COMPRESSED_MAX_LENGTH);
             byte[] recordData = IO.readBytes(data, recordLength);
 
-            TlsRecord record = new TlsRecord(type, this.recordVersion, recordData);
-
             if (this.writeCipher != null) {
-                byte[] encryptedContent = this.writeCipher.encrypt(record);
-                record.setRecordBody(encryptedContent);
+                recordData = this.writeCipher.encrypt(type, this.recordVersion, recordData);
             }
 
-            TlsEncoder.writeRecord(out, record);
+            TlsEncoder.writeRecord(out, new TlsRecord(type, this.recordVersion, recordData));
         }
 
         out.flush();

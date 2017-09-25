@@ -8,6 +8,10 @@ import java.net.InetSocketAddress;
 
 public interface Connection extends Closeable {
 
+    default void connect(String host, int port) throws IOException {
+        this.connect(new InetSocketAddress(host, port));
+    }
+
     void connect(InetSocketAddress address) throws IOException;
 
     InputStream getInput() throws IOException;
