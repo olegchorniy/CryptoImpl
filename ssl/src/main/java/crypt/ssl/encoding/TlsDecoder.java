@@ -85,6 +85,8 @@ public abstract class TlsDecoder {
                 return new ServerKeyExchange(handshakeBuffer);
             case SERVER_HELLO_DONE:
                 return ServerHelloDone.INSTANCE;
+            case FINISHED:
+                return readFinished(handshakeBuffer);
         }
 
         Dumper.dumpToStderr(handshakeBuffer);
@@ -171,6 +173,18 @@ public abstract class TlsDecoder {
         byte[] certificateContent = IO.readBytes(source, certificateLength);
 
         return new ASN1Certificate(certificateContent);
+    }
+
+    private static Finished readFinished(ByteBuffer source) {
+        return new Finished(readAllBytes(source));
+    }
+
+    public static ApplicationData readApplicationData(ByteBuffer source) {
+        return new ApplicationData(readAllBytes(source));
+    }
+
+    private static byte[] readAllBytes(ByteBuffer buffer) {
+        return IO.readBytes(buffer, buffer.remaining());
     }
 
     private static void checkBufferConsumed(ByteBuffer buffer) {

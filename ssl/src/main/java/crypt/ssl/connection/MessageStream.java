@@ -47,15 +47,24 @@ public class MessageStream {
         this.out = out;
     }
 
+    protected MessageStream(Buffer messages) {
+        this(null, null, null);
+
+        messagesBuffer.putBytes(messages.peekBytes());
+    }
+
     public void setRecordVersion(ProtocolVersion recordVersion) {
         this.recordVersion = recordVersion;
     }
 
-    public void initEncryption(KeyParameters clientParams, KeyParameters serverParameters) {
+    public void initReadEncryption(KeyParameters serverParameters) {
         CipherSuite suite = this.context.getSecurityParameters().getCipherSuite();
+        this.readCipher = createCipher(suite, serverParameters);
+    }
 
+    public void initWriteEncryption(KeyParameters clientParams) {
+        CipherSuite suite = this.context.getSecurityParameters().getCipherSuite();
         this.writeCipher = createCipher(suite, clientParams);
-        //this.readCipher = createCipher(suite, serverParameters);
     }
 
     private TlsCipher createCipher(CipherSuite suite, KeyParameters keyParameters) {
@@ -189,7 +198,7 @@ public class MessageStream {
         checkContentType(contentType);
 
         if (this.readCipher != null) {
-            recordBody = this.readCipher.decrypt(recordBody);
+            recordBody = this.readCipher.decrypt(record);
         }
 
         this.messagesBuffer.putBytes(recordBody);
@@ -218,5 +227,7 @@ public class MessageStream {
 
             TlsEncoder.writeRecord(out, record);
         }
+
+        out.flush();
     }
 }

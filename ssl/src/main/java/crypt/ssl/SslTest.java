@@ -45,9 +45,12 @@ public class SslTest {
     }
 
     public static void newSslClient() throws Exception {
-        TlsConnection connection = new TlsConnection(Collections.singletonList(CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA));
+        List<CipherSuite> cipherSuites = Collections.singletonList(CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA);
 
+        TlsConnection connection = new TlsConnection(cipherSuites);
         connection.connect(new InetSocketAddress("localhost", 8090));
+
+        doSimpleHttpRequest("localhost", "/test", connection.getOutput(), connection.getInput());
     }
 
     public static void sslPretendingServer() throws IOException {

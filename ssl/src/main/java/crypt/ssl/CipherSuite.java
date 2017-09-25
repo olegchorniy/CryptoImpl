@@ -26,8 +26,9 @@ public enum CipherSuite implements TlsEnum {
             CipherType.BLOCK_CIPHER,
             BulkCipherAlgorithm.AES,
             16,
+            16,
             20,
-            16
+            20
     ),
 
     TLS_DHE_RSA_WITH_AES_128_GCM_SHA256  (0x009E,
@@ -36,8 +37,9 @@ public enum CipherSuite implements TlsEnum {
             CipherType.AEAD_CIPHER,
             BulkCipherAlgorithm.AES,
             16,
+            16,
             0,
-            16
+            0
     ),
 
     TLS_RSA_WITH_AES_128_CBC_SHA256      (0x003C,
@@ -46,8 +48,9 @@ public enum CipherSuite implements TlsEnum {
             CipherType.BLOCK_CIPHER,
             BulkCipherAlgorithm.AES,
             16,
+            16,
             32,
-            16
+            32
     ),
 
     TLS_RSA_WITH_AES_128_GCM_SHA256      (0x009C,
@@ -56,8 +59,9 @@ public enum CipherSuite implements TlsEnum {
             CipherType.AEAD_CIPHER,
             BulkCipherAlgorithm.AES,
             16,
+            16,
             0,
-            16
+            0
     );
 
     // @formatter:on
@@ -69,15 +73,15 @@ public enum CipherSuite implements TlsEnum {
     private final CipherType cipherType;
     private final BulkCipherAlgorithm bulkCipherAlgorithm;
 
+    private final int blockSize;
     private final int encryptionKeySize;
 
     //in TLS is the same as the length of the corresponding hash function output
-    private final int macKeySize;
-
-    private final int blockSize;
+    private final int macLength;
+    private final int macKeyLength;
 
     CipherSuite(int value) {
-        this(value, null, null, null, null, -1, -1, -1);
+        this(value, null, null, null, null, -1, -1, -1, -1);
     }
 
     CipherSuite(int value,
@@ -85,17 +89,19 @@ public enum CipherSuite implements TlsEnum {
                 HashAlgorithm hashAlgorithm,
                 CipherType cipherType,
                 BulkCipherAlgorithm bulkCipherAlgorithm,
+                int blockSize,
                 int encryptionKeySize,
-                int macKeySize,
-                int blockSize) {
+                int macLength,
+                int macKeyLength) {
         this.value = value;
         this.keyExchangeType = keyExchangeType;
         this.hashAlgorithm = hashAlgorithm;
         this.cipherType = cipherType;
         this.bulkCipherAlgorithm = bulkCipherAlgorithm;
-        this.encryptionKeySize = encryptionKeySize;
-        this.macKeySize = macKeySize;
         this.blockSize = blockSize;
+        this.encryptionKeySize = encryptionKeySize;
+        this.macLength = macLength;
+        this.macKeyLength = macKeyLength;
     }
 
     //TODO: define properly

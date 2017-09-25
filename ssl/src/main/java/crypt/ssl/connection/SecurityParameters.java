@@ -13,6 +13,9 @@ public class SecurityParameters {
     private RandomValue serverRandom;
     private CipherSuite cipherSuite;
     private byte[] masterSecret;
+    private KeyParameters clientKeyParameters;
+    private KeyParameters serverKeyParameters;
+
     /*
       ConnectionEnd          entity;
     s PRFAlgorithm           prf_algorithm;
@@ -23,8 +26,8 @@ public class SecurityParameters {
       uint8                  fixed_iv_length;
       uint8                  record_iv_length;
     s MACAlgorithm           mac_algorithm;
-      uint8                  mac_length;
-      uint8                  mac_key_length;
+    s uint8                  mac_length;
+    s uint8                  mac_key_length;
     - CompressionMethod      compression_algorithm;
       opaque                 master_secret[48];
 

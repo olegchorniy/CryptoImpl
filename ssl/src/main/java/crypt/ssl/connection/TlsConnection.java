@@ -59,6 +59,9 @@ public class TlsConnection implements Connection {
     // Used to compute hashes for Finished messages
     private final Buffer handshakeMessages = new Buffer();
 
+    private TlsInputStream in;
+    private TlsOutputStream out;
+
     /* -------------------------------------------------- */
 
     //TODO: provide other extension points (extensions, ...)
@@ -147,6 +150,7 @@ public class TlsConnection implements Connection {
 
         switch (message.getContentType()) {
             case HANDSHAKE:
+                // TODO: don't forget to stop collecting all messages and clear accumulated buffer
                 saveHandshakeMessage(body);
 
                 handleHandshakeMessage(TlsDecoder.readHandshake(body));
@@ -157,13 +161,16 @@ public class TlsConnection implements Connection {
                 break;
 
             case APPLICATION_DATA:
-                handleApplicationData(new ApplicationData(body));
+                handleApplicationData(TlsDecoder.readApplicationData(body));
                 break;
 
             case ALERT:
                 handleAlertMessage(TlsDecoder.readAlert(body));
                 break;
         }
+
+        // Ensure that the hole message has been consumed
+        Assert.assertFalse(body.hasRemaining());
     }
 
     private void handleHandshakeMessage(HandshakeMessage handshake) throws IOException {
@@ -249,16 +256,22 @@ public class TlsConnection implements Connection {
                 safeCast(handshake, ServerHelloDone.class);
 
                 continueFullHandshake();
+
+                this.handshakeState = HandshakeState.FINISHED_SENT;
                 return;
 
-            case FINISHED_RECEIVED:
-                //Finished finished = safeCast(handshake, Finished.class);
+            case CHANGE_CIPHER_SPEC_RECEIVED:
+                Finished finished = safeCast(handshake, Finished.class);
+
                 //verifyFinished(finished);
 
+                System.out.println("Server's verify data: ");
+                Dumper.dumpToStdout(finished.getVerifyData());
+
                 if (this.fullHandshake) {
-                    //TODO: handshake is done
+                    handshakeFinished();
                 } else {
-                    continueAbbreviatedHandshake();
+                    finishAbbreviatedHandshake();
                 }
         }
     }
@@ -277,20 +290,20 @@ public class TlsConnection implements Connection {
         // so we never sent Certificate and CertificateVerify messages
 
         sendClientKeyExchange();
-        sendChangeCipherSpec();
 
         /* We need to calculate keys now because following messages should be encrypted */
-        byte[] preMasterSecret = this.keyExchange.generatePreMasterSecret();
-        initializeEncryption(preMasterSecret);
+        computeKeys(this.keyExchange.generatePreMasterSecret());
+
+        sendChangeCipherSpec();
 
         /* Send first encrypted message */
         sendFinished();
     }
 
-    private void initializeEncryption(byte[] preMasterSecret) {
+    private void computeKeys(byte[] preMasterSecret) {
         CipherSuite cipherSuite = parameters.getCipherSuite();
 
-        int macSize = cipherSuite.getMacKeySize();
+        int macSize = cipherSuite.getMacKeyLength();
         int encryptionKeySize = cipherSuite.getEncryptionKeySize();
         int fixedIvSize = cipherSuite.getFixedIvSize();
 
@@ -323,7 +336,8 @@ public class TlsConnection implements Connection {
         System.out.println("serverKeyParams = " + serverKeyParams);
 
         this.parameters.setMasterSecret(masterSecret);
-        this.messageStream.initEncryption(clientKeyParams, serverKeyParams);
+        this.parameters.setClientKeyParameters(clientKeyParams);
+        this.parameters.setServerKeyParameters(serverKeyParams);
     }
 
     private byte[] calculateMasterSecret(byte[] preMasterSecret) {
@@ -347,20 +361,23 @@ public class TlsConnection implements Connection {
         return new DigestPRF(HashAlgorithm.SHA256);
     }
 
-    private void continueAbbreviatedHandshake() throws IOException {
+    private void finishAbbreviatedHandshake() throws IOException {
         sendChangeCipherSpec();
         sendFinished();
 
-        // TODO: handshake is done
+        handshakeFinished();
+    }
+
+    private void handshakeFinished() {
+        this.handshakeState = HandshakeState.DONE;
+        this.state = ConnectionState.ESTABLISHED;
+
+        //TODO: maybe perform some other kind of cleanup
     }
 
     private void sendClientKeyExchange() throws IOException {
         byte[] exchangeKeys = this.keyExchange.generateClientKeyExchange();
         sendMessage(new ClientKeyExchange(exchangeKeys), TlsEncoder::writeHandshake);
-    }
-
-    private void sendChangeCipherSpec() throws IOException {
-        sendMessage(ChangeCipherSpec.INSTANCE, TlsEncoder::writeChangeCipherSpec);
     }
 
     private void sendFinished() throws IOException {
@@ -373,6 +390,9 @@ public class TlsConnection implements Connection {
 
         sendMessage(new Finished(verifyData), TlsEncoder::writeHandshake);
     }
+
+
+    /* ---------------------- ChangeCipherSpec related methods ------------------------ */
 
     private void handleChangeCipherSpec(ChangeCipherSpec changeCipherSpec) throws IOException {
         // We expect to receive ChangeCipherSpec message in two cases:
@@ -390,12 +410,21 @@ public class TlsConnection implements Connection {
 
         Assert.assertEquals(changeCipherSpec.getType(), 1);
 
-        //TODO: mark current connection as 'encrypted'
+        // Initialize reading encryption, since all the following inbound messages will be encrypted
+        this.messageStream.initReadEncryption(this.parameters.getServerKeyParameters());
 
         this.handshakeState = HandshakeState.CHANGE_CIPHER_SPEC_RECEIVED;
     }
 
+    private void sendChangeCipherSpec() throws IOException {
+        sendMessage(ChangeCipherSpec.INSTANCE, TlsEncoder::writeChangeCipherSpec);
+
+        // Initializer writing encryption, since all the following outbound messages should be encrypted
+        this.messageStream.initWriteEncryption(this.parameters.getClientKeyParameters());
+    }
+
     private void handleApplicationData(ApplicationData applicationData) throws IOException {
+        this.applicationDataBuffer.putBytes(applicationData.getData());
     }
 
     private void handleAlertMessage(Alert alert) throws IOException {
@@ -431,12 +460,20 @@ public class TlsConnection implements Connection {
 
     @Override
     public InputStream getInput() throws IOException {
-        return null;
+        if (this.in == null) {
+            this.in = new TlsInputStream();
+        }
+
+        return this.in;
     }
 
     @Override
     public OutputStream getOutput() throws IOException {
-        return null;
+        if (this.out == null) {
+            this.out = new TlsOutputStream();
+        }
+
+        return this.out;
     }
 
     @Override
@@ -453,7 +490,7 @@ public class TlsConnection implements Connection {
     }
 
     private byte[] computeHandshakesHash() {
-        Digest digest = DigestFactory.createDigest(this.parameters.getCipherSuite().getHashAlgorithm());
+        Digest digest = DigestFactory.createDigest(/*this.parameters.getCipherSuite().getHashAlgorithm()*/HashAlgorithm.SHA256);
 
         byte[] handshakesBytes = Bits.toArray(this.handshakeMessages.peekBytes());
         digest.update(handshakesBytes, 0, handshakesBytes.length);
@@ -497,7 +534,7 @@ public class TlsConnection implements Connection {
         CHANGE_CIPHER_SPEC_RECEIVED,
         CERTIFICATE_RECEIVED,
         SERVER_KEY_EXCHANGE_RECEIVED,
-        FINISHED_RECEIVED,
+        DONE,
         FINISHED_SENT
     }
 
@@ -510,9 +547,29 @@ public class TlsConnection implements Connection {
 
     private class TlsInputStream extends InputStream {
 
+        private byte[] inBuff = new byte[1];
+
         @Override
         public int read() throws IOException {
-            return 0;
+
+            // TODO: handle closing properly
+            while (applicationDataBuffer.isEmpty()) {
+                readAndHandleMessage();
+            }
+
+            applicationDataBuffer.getBytes(inBuff);
+
+            return inBuff[0] & 0xFF;
+        }
+    }
+
+    private class TlsOutputStream extends OutputStream {
+
+        @Override
+        public void write(int b) throws IOException {
+            // TODO: handle closing properly
+            // TODO: don't do such stupid things. Overwrite write(byte[] d, int off, int len) method instead.
+            messageStream.writeMessage(ContentType.APPLICATION_DATA, ByteBuffer.wrap(new byte[]{(byte) b}));
         }
     }
 }

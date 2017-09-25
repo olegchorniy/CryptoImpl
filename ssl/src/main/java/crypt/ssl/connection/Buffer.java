@@ -76,6 +76,10 @@ public class Buffer {
         putBytes(src, 0, srcLength);
     }
 
+    public void getBytes(byte[] dst) {
+        getBytes(dst, 0, dst.length);
+    }
+
     public void getBytes(byte[] dst, int length) {
         getBytes(dst, 0, length);
     }
