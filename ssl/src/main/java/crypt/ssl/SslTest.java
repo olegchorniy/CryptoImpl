@@ -15,11 +15,8 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-
-import static org.bouncycastle.crypto.tls.CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
 
 public class SslTest {
 
@@ -29,40 +26,35 @@ public class SslTest {
 
     public static void main(String[] args) throws Exception {
         //bcSslClient();
+
+        //TODO: Am I write that a Reader holds internal buffer and that is the reason why we see ALERT between
+        //TODO: several text fragment dumps?
         newSslClient();
     }
 
     public static void newSslClient() throws Exception {
 
-        String host = "habrahabr.ru";
-        String path = "/";
+        String host = "id.tmtm.ru";
+        String path = "/login/";
         int port = 443;
 
-        List<CipherSuite> cipherSuites = Collections.singletonList(CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA);
+        try (TlsConnection connection = new TlsConnection(CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA)) {
+            connection.connect(host, port);
 
-        TlsConnection connection = new TlsConnection(cipherSuites);
-        connection.connect(host, port);
-
-        doSimpleHttpRequest(host, path, connection.getOutput(), connection.getInput());
+            doSimpleHttpRequest(host, path, connection.getOutput(), connection.getInput());
+        }
     }
 
     public static void bcSslClient() throws Exception {
-        String host = "localhost";
-        int port = 8090;
-        String path = "/test";
+        String host = "habrahabr.ru";
+        int port = 443;
+        String path = "/";
 
         socket(host, port, (in, out) -> {
 
             TlsClientProtocol tls = new TlsClientProtocol(in, out, new SecureRandom());
 
             tls.connect(new DefaultTlsClient() {
-
-                @Override
-                public int[] getCipherSuites() {
-                    return new int[]{
-                            TLS_DHE_RSA_WITH_AES_128_CBC_SHA
-                    };
-                }
 
                 @Override
                 public TlsAuthentication getAuthentication() throws IOException {
@@ -112,7 +104,8 @@ public class SslTest {
         try {
 
             System.out.println(new Date());
-            textDump(is);
+            //textDump(is);
+            dump(is);
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println(new Date());

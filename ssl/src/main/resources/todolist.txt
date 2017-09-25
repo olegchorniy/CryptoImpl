@@ -2,5 +2,5 @@
     2. Session resuming (abbreviated handshake)
     3. RSA key exchange scheme
 (?) 4. AES GCM mode
-    5. Make hash functions selection clear
+ +  5. Make hash functions selection clear
     6. Add alert notifications according to the RFC

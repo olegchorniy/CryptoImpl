@@ -39,6 +39,13 @@ import java.util.Random;
 public class TlsConnection implements Connection {
 
     private static final List<CompressionMethod> NO_COMPRESSION = Collections.singletonList(CompressionMethod.NULL);
+    private static final CipherSuite[] ALL_SUITES;
+
+    static {
+        ALL_SUITES = Arrays.stream(CipherSuite.values())
+                .filter(suite -> suite != CipherSuite.TLS_NULL_WITH_NULL_NULL)
+                .toArray(CipherSuite[]::new);
+    }
 
     // We don't support other TLS versions.
     private final ProtocolVersion version = ProtocolVersion.TLSv12;
@@ -49,10 +56,11 @@ public class TlsConnection implements Connection {
     private MessageStream messageStream;
 
     private SecurityParameters parameters = new SecurityParameters();
+    private final Session session;
 
     private ConnectionState state = ConnectionState.NEW;
     private HandshakeState handshakeState = null;
-    private boolean fullHandshake = true;
+    private boolean fullHandshake;
 
     private KeyExchange keyExchange;
 
@@ -64,18 +72,33 @@ public class TlsConnection implements Connection {
     private TlsOutputStream out;
 
     /* -------------------------------------------------- */
-
-    //TODO: provide other extension points (extensions, ...)
     private final List<CipherSuite> supportedCipherSuites;
 
-    //TODO: add possibility to specify parameters of the previous connection for session resume
+    public TlsConnection() {
+        this(ALL_SUITES);
+    }
 
-    public TlsConnection(List<CipherSuite> supportedCipherSuites) {
-        this.supportedCipherSuites = supportedCipherSuites;
+    public TlsConnection(CipherSuite... supportedCipherSuites) {
+        this(TlsConfigurer.forSuites(supportedCipherSuites));
+    }
+
+    public TlsConnection(TlsConfigurer configurer) {
+        Assert.assertNotNull(configurer.getSuites());
+
+        this.supportedCipherSuites = configurer.getSuites();
+
         this.context = new TlsContext();
-
         this.context.setSecurityParameters(this.parameters);
         this.context.setRandom(this.random);
+
+        Session session = configurer.getSession();
+        if (session == null) {
+            this.session = new Session();
+            this.fullHandshake = true;
+        } else {
+            this.session = session;
+            this.fullHandshake = false;
+        }
     }
 
     @Override
@@ -108,12 +131,13 @@ public class TlsConnection implements Connection {
     }
 
     private void sendClientHello() throws IOException {
+        SessionId sessionId = this.fullHandshake ? SessionId.EMPTY : this.session.getSessionId();
         RandomValue randomValue = generateRandom();
 
         ClientHello clientHello = ClientHello.builder()
                 .clientVersion(this.version)
                 .random(randomValue)
-                .sessionId(SessionId.EMPTY)
+                .sessionId(sessionId)
                 .cipherSuites(this.supportedCipherSuites)
                 .compressionMethods(NO_COMPRESSION)
                 .extensions(Extensions.empty())
@@ -140,6 +164,7 @@ public class TlsConnection implements Connection {
         try {
             handleMessage(message);
         } catch (TlsAlertException alert) {
+            alert.printStackTrace();
             sendAlert(alert.getLevel(), alert.getDescription());
             //TODO: close the connection
         }
@@ -148,7 +173,9 @@ public class TlsConnection implements Connection {
     private void handleMessage(RawMessage message) throws IOException {
         System.out.println("Connection state = " + this.state);
         System.out.println("Handshake state = " + this.handshakeState);
-        System.out.println("Message = " + message.toString());
+        System.out.println("ContentType = " + message.getContentType());
+        System.out.println("Message length = " + message.getMessageBody().remaining());
+        // System.out.println("Message = " + message.toString());
 
         ByteBuffer body = message.getMessageBody();
 
@@ -179,7 +206,12 @@ public class TlsConnection implements Connection {
         }
 
         // Ensure that the hole message has been consumed
-        Assert.assertFalse(body.hasRemaining());
+        // TODO: why we sometimes get into the if block with 01 00 dump (corresponds to close_notify alert) (try with habr in debug).
+        if (body.hasRemaining()) {
+            System.err.println("Message wasn't consumed");
+            System.err.println(message.getContentType());
+            Dumper.dumpToStderr(body);
+        }
     }
 
     private void handleHandshakeMessage(HandshakeMessage handshake) throws IOException {
@@ -198,19 +230,28 @@ public class TlsConnection implements Connection {
                 Assert.assertEquals(this.version, serverHello.getServerVersion());
 
                 CipherSuite cipherSuite = serverHello.getCipherSuite();
+                SessionId sessionId = serverHello.getSessionId();
 
                 this.parameters.setServerRandom(serverHello.getRandom());
                 this.parameters.setCipherSuite(cipherSuite);
 
-                //TODO: we don't need this for abbreviated handshake
-                this.keyExchange = createKeyExchange(cipherSuite.getKeyExchangeType());
+                if (!this.fullHandshake) {
+                    if (!this.session.getSessionId().equals(sessionId)) {
+                        // Sever didn't find a match for the supplied sessionId or doesn't want
+                        // to perform an abbreviated handshake - fallback to the full handshake.
+                        this.fullHandshake = true;
+                    } else {
+                        // Everything is OK, we can compute sessions keys and wait for the ChangeCipherSpec
+                        computeKeys();
+                    }
+                }
 
-                //TODO: For abbreviated handshake:
-                //TODO: if this SSID is equal to the one specified in the ClientHello (if any),
-                //TODO: then the server is ready to perform an abbreviated handshake.
-                //TODO: if we didn't specify any SSID Id or if the received SSID isn't equal to our SSID
-                //TODO: then perform a full handshake and store received SSID for future uses
-                //serverHello.getSessionId();
+                if (this.fullHandshake) {
+                    this.keyExchange = createKeyExchange(cipherSuite.getKeyExchangeType());
+
+                    this.session.setSessionId(sessionId);
+                    this.session.setCipherSuite(cipherSuite);
+                }
 
                 //TODO: do something useful with extensions
                 //serverHello.getExtensions();
@@ -298,7 +339,8 @@ public class TlsConnection implements Connection {
         sendClientKeyExchange();
 
         /* We need to calculate keys now because following messages should be encrypted */
-        computeKeys(this.keyExchange.generatePreMasterSecret());
+        this.session.setPreMasterSecret(this.keyExchange.generatePreMasterSecret());
+        computeKeys();
 
         sendChangeCipherSpec();
 
@@ -306,7 +348,8 @@ public class TlsConnection implements Connection {
         sendFinished();
     }
 
-    private void computeKeys(byte[] preMasterSecret) {
+    private void computeKeys() {
+        byte[] preMasterSecret = this.session.getPreMasterSecret();
         CipherSuite cipherSuite = parameters.getCipherSuite();
 
         int macSize = cipherSuite.getMacKeyLength();
@@ -349,21 +392,21 @@ public class TlsConnection implements Connection {
     private byte[] calculateMasterSecret(byte[] preMasterSecret) {
         byte[] seed = concatRandoms(this.parameters.getClientRandom(), this.parameters.getServerRandom());
 
-        return getPRFInstance().compute(preMasterSecret, "master secret", seed, 48);
+        return createPRFInstance().compute(preMasterSecret, "master secret", seed, 48);
     }
 
     private byte[] generateKeyMaterial(byte[] masterSecret, int size) {
         byte[] seed = concatRandoms(this.parameters.getServerRandom(), this.parameters.getClientRandom());
 
-        return getPRFInstance().compute(masterSecret, "key expansion", seed, size);
+        return createPRFInstance().compute(masterSecret, "key expansion", seed, size);
     }
 
     private byte[] concatRandoms(RandomValue first, RandomValue second) {
         return Bits.concat(first.toByteArray(), second.toByteArray());
     }
 
-    private PRF getPRFInstance() {
-        // TODO: figure out how to determine hash function to be used inside of PRF correctly
+    private PRF createPRFInstance() {
+        // RFC-5246 states that SHA-256 should be used unless other PRF is defined by a negotiated cipher suited.
         return new DigestPRF(HashAlgorithm.SHA256);
     }
 
@@ -408,7 +451,7 @@ public class TlsConnection implements Connection {
     private byte[] computeVerifyData(String label) {
         byte[] masterSecret = this.parameters.getMasterSecret();
         byte[] handshakesHash = computeHandshakesHash();
-        return getPRFInstance().compute(masterSecret, label, handshakesHash, 12);
+        return createPRFInstance().compute(masterSecret, label, handshakesHash, 12);
     }
 
     /* ---------------------- ChangeCipherSpec related methods ------------------------ */
@@ -455,9 +498,12 @@ public class TlsConnection implements Connection {
     }
 
     private void closeInternal() throws IOException {
-        //TODO: check
-        sendAlert(AlertLevel.FATAL, AlertDescription.CLOSE_NOTIFY);
-        this.socket.close();
+        if (this.state != ConnectionState.CLOSED) {
+            //TODO: check
+            sendAlert(AlertLevel.FATAL, AlertDescription.CLOSE_NOTIFY);
+            this.state = ConnectionState.CLOSED;
+            this.socket.close();
+        }
     }
 
     /*
@@ -520,8 +566,8 @@ public class TlsConnection implements Connection {
     }
 
     private byte[] computeHandshakesHash() {
-        //TODO: WHY???????
-        Digest digest = DigestFactory.createDigest(/*this.parameters.getCipherSuite().getHashAlgorithm()*/HashAlgorithm.SHA256);
+        // Hash function should be consistent with PRF used.
+        Digest digest = DigestFactory.createDigest(HashAlgorithm.SHA256);
 
         byte[] handshakesBytes = Bits.toArray(this.handshakeMessages.peekBytes());
         digest.update(handshakesBytes, 0, handshakesBytes.length);
@@ -589,6 +635,11 @@ public class TlsConnection implements Connection {
             }
 
             while (applicationDataBuffer.isEmpty()) {
+                // TODO: strange behavior without this clause (with reading from IS and from Reader)
+                /*if (state == ConnectionState.CLOSED) {
+                    return -1;
+                }*/
+
                 readAndHandleMessage();
             }
 

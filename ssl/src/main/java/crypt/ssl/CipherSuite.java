@@ -15,10 +15,17 @@ public enum CipherSuite implements TlsEnum {
     // @formatter:off
 
     TLS_NULL_WITH_NULL_NULL              (0x0000),
+
+    /*
+    Don't use without careful clarification of the PRF, HMac and Hash (Finished) used with a desired cipher suite.
+
     TLS_DH_RSA_WITH_AES_128_GCM_SHA256   (0x00A0),
+    TLS_DHE_RSA_WITH_AES_128_GCM_SHA256  (0x009E),
     TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 (0xC029),
     TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 (0xC031),
     TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA   (0xC02F),
+    TLS_RSA_WITH_AES_128_GCM_SHA256      (0x009C),
+    */
 
     TLS_DHE_RSA_WITH_AES_128_CBC_SHA     (0x0033,
             KeyExchangeType.DHE,
@@ -31,17 +38,6 @@ public enum CipherSuite implements TlsEnum {
             20
     ),
 
-    TLS_DHE_RSA_WITH_AES_128_GCM_SHA256  (0x009E,
-            KeyExchangeType.DHE,
-            HashAlgorithm.SHA256,
-            CipherType.AEAD_CIPHER,
-            BulkCipherAlgorithm.AES,
-            16,
-            16,
-            0,
-            0
-    ),
-
     TLS_RSA_WITH_AES_128_CBC_SHA256      (0x003C,
             KeyExchangeType.RSA,
             HashAlgorithm.SHA256,
@@ -51,17 +47,6 @@ public enum CipherSuite implements TlsEnum {
             16,
             32,
             32
-    ),
-
-    TLS_RSA_WITH_AES_128_GCM_SHA256      (0x009C,
-            KeyExchangeType.RSA,
-            HashAlgorithm.SHA256,
-            CipherType.AEAD_CIPHER,
-            BulkCipherAlgorithm.AES,
-            16,
-            16,
-            0,
-            0
     );
 
     // @formatter:on
