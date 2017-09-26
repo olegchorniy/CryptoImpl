@@ -7,15 +7,23 @@ import crypt.ssl.messages.handshake.CertificateMessage;
 import crypt.ssl.utils.CertificateDecoder;
 import crypt.ssl.utils.Hex;
 import org.bouncycastle.crypto.tls.*;
+import org.bouncycastle.jcajce.provider.asymmetric.x509.CertificateFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.x509.CertPathReviewerException;
+import org.bouncycastle.x509.PKIXCertPathReviewer;
 
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.security.cert.CertPath;
 import java.security.cert.CertificateException;
+import java.security.cert.PKIXParameters;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -26,8 +34,8 @@ public class SslTest {
     }
 
     public static void main(String[] args) throws Exception {
-        //bcSslClient();
-        newSslClient();
+        bcSslClient();
+        //newSslClient();
     }
 
     public static Session newSslClient() throws Exception {
@@ -88,6 +96,21 @@ public class SslTest {
                     return new ServerOnlyTlsAuthentication() {
                         @Override
                         public void notifyServerCertificate(Certificate serverCertificate) throws IOException {
+
+                            try {
+
+                                // https://stackoverflow.com/questions/2457795/x-509-certificate-validation-with-java-and-bouncycastle
+
+                                // TODO: code below doesn't work, but it's a good starting point
+                                CertPath certPath = new CertificateFactory().engineGenerateCertPath(Arrays.asList(serverCertificate.getCertificateList()));
+
+                                PKIXCertPathReviewer validator = new PKIXCertPathReviewer();
+                                validator.init(certPath, new PKIXParameters(Collections.emptySet()));
+
+                                System.out.println(Arrays.toString(validator.getErrors()));
+                            } catch (CertificateException | InvalidAlgorithmParameterException | CertPathReviewerException e) {
+                                e.printStackTrace();
+                            }
                         }
                     };
                 }
