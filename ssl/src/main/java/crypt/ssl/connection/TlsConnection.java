@@ -201,17 +201,20 @@ public class TlsConnection implements Connection {
                 byte[] handshakeBytes = Bits.toArray(body);
                 HandshakeMessage handshake = TlsDecoder.readHandshake(body);
 
-                // TODO: THERE IS A PROBLEM HERE !!!!
-                if (this.fullHandshake && handshake.getType() != HandshakeType.FINISHED) {
-                    saveHandshakeMessage(handshakeBytes);
-                }
+                // TODO: probably, here problem is fixed but I'am not sure
+                boolean isFinishedMessage = handshake.getType() == HandshakeType.FINISHED;
 
-                if (!this.fullHandshake) {
-                    // We shouldn't use inbound Finished message for the verification is we perform full handshake
+                if (!isFinishedMessage) {
                     saveHandshakeMessage(handshakeBytes);
                 }
 
                 handleHandshakeMessage(handshake);
+
+                if (isFinishedMessage && !this.fullHandshake) {
+                    // We shouldn't use inbound Finished message for the verification is we perform full handshake
+                    saveHandshakeMessage(handshakeBytes);
+                }
+
                 break;
 
             case CHANGE_CIPHER_SPEC:
