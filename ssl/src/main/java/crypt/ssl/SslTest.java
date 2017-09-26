@@ -27,18 +27,20 @@ public class SslTest {
 
     public static void main(String[] args) throws Exception {
         //bcSslClient();
-        //newSslClient();
-        Session session = newSslClient();
-        resumeSession(session);
+        newSslClient();
     }
 
     public static Session newSslClient() throws Exception {
 
-        String host = "localhost"; //"id.tmtm.ru";
-        String path = "/test"; //"/login/";
-        int port = 8090;
+        /*String host = "localhost";
+        String path = "/test";
+        int port = 8090;*/
 
-        try (TlsConnection connection = new TlsConnection(CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA)) {
+        String host = "habrahabr.ru";
+        String path = "/";
+        int port = 443;
+
+        try (TlsConnection connection = new TlsConnection(CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA256)) {
             connection.connect(host, port);
 
             doSimpleHttpRequest(host, path, connection.getOutput(), connection.getInput());
@@ -48,8 +50,8 @@ public class SslTest {
     }
 
     public static void resumeSession(Session session) throws Exception {
-        String host = "localhost"; //"id.tmtm.ru";
-        String path = "/"; //"/login/";
+        String host = "localhost";
+        String path = "/test";
         int port = 8090;
 
         try (TlsConnection connection = new TlsConnection(session)) {
@@ -60,15 +62,26 @@ public class SslTest {
     }
 
     public static void bcSslClient() throws Exception {
+        /*String host = "localhost";
+        int port = 8090;
+        String path = "/test";*/
+
         String host = "habrahabr.ru";
-        int port = 443;
         String path = "/";
+        int port = 443;
 
         socket(host, port, (in, out) -> {
 
             TlsClientProtocol tls = new TlsClientProtocol(in, out, new SecureRandom());
 
             tls.connect(new DefaultTlsClient() {
+
+                @Override
+                public int[] getCipherSuites() {
+                    return new int[]{
+                            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA256.getValue()
+                    };
+                }
 
                 @Override
                 public TlsAuthentication getAuthentication() throws IOException {

@@ -20,4 +20,12 @@ public class Alert implements TlsMessage {
     public ContentType getContentType() {
         return ContentType.ALERT;
     }
+
+    @Override
+    public String toString() {
+        return "Alert(" +
+                "\n\tlevel: " + level +
+                ",\n\tdescription: " + description +
+                ')';
+    }
 }

@@ -26,7 +26,7 @@ public abstract class CipherFactory {
         throw new IllegalArgumentException(cipherSuite.getCipherType() + " is not compliant with AES");
     }
 
-    private static Cipher getInstance(String cipher) {
+    public static Cipher getInstance(String cipher) {
         try {
             return Cipher.getInstance(cipher, "BC");
         } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException e) {

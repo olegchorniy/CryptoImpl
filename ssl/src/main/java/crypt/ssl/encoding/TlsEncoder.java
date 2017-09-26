@@ -28,8 +28,7 @@ public abstract class TlsEncoder {
 
         byte[] recordBody = record.getRecordBody();
 
-        IO.writeInt16(out, recordBody.length);
-        IO.writeBytes(out, recordBody);
+        IO.writeOpaque16(out, recordBody);
     }
 
     public static void writeAlert(OutputStream out, Alert alert) throws IOException {

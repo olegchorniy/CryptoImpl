@@ -6,10 +6,22 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.GeneralSecurityException;
+import java.security.Key;
 
 public abstract class CipherUtils {
 
     private CipherUtils() {
+    }
+
+    public static byte[] encrypt(String algorithm, Key key, byte[] input) {
+        try {
+            Cipher cipher = CipherFactory.getInstance(algorithm);
+            cipher.init(Cipher.ENCRYPT_MODE, key);
+
+            return cipher.doFinal(input);
+        } catch (GeneralSecurityException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static byte[] encrypt(CipherSuite suite, byte[] iv, byte[] key, byte[] input) {

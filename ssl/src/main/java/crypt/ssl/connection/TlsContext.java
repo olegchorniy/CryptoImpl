@@ -1,6 +1,7 @@
 package crypt.ssl.connection;
 
 
+import crypt.ssl.messages.ProtocolVersion;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -12,4 +13,5 @@ public class TlsContext {
 
     private Random random;
     private SecurityParameters securityParameters;
+    private ProtocolVersion version;
 }

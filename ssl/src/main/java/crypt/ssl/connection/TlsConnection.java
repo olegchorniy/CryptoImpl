@@ -6,12 +6,14 @@ import crypt.ssl.digest.HashAlgorithm;
 import crypt.ssl.encoding.Encoder;
 import crypt.ssl.encoding.TlsDecoder;
 import crypt.ssl.encoding.TlsEncoder;
+import crypt.ssl.exceptions.NoCloseNotifyException;
 import crypt.ssl.exceptions.TlsAlertException;
 import crypt.ssl.exceptions.TlsException;
 import crypt.ssl.exceptions.TlsUnexpectedMessageException;
 import crypt.ssl.keyexchange.DHEKeyExchange;
 import crypt.ssl.keyexchange.KeyExchange;
 import crypt.ssl.keyexchange.KeyExchangeType;
+import crypt.ssl.keyexchange.RSAKeyExchange;
 import crypt.ssl.messages.*;
 import crypt.ssl.messages.alert.Alert;
 import crypt.ssl.messages.alert.AlertDescription;
@@ -91,6 +93,7 @@ public class TlsConnection implements Connection {
         this.context = new TlsContext();
         this.context.setSecurityParameters(this.parameters);
         this.context.setRandom(this.random);
+        this.context.setVersion(this.version);
 
         Session session = configurer.getSession();
         if (session == null) {
@@ -172,10 +175,7 @@ public class TlsConnection implements Connection {
     private void readAndHandleMessage() throws IOException {
         RawMessage message = this.messageStream.readMessage();
         if (message == null) {
-            //TODO: uncomment?
-            //throw new NoCloseNotifyException();
-            this.state = ConnectionState.CLOSED;
-            return;
+            throw new NoCloseNotifyException();
         }
 
         try {
@@ -201,19 +201,11 @@ public class TlsConnection implements Connection {
                 byte[] handshakeBytes = Bits.toArray(body);
                 HandshakeMessage handshake = TlsDecoder.readHandshake(body);
 
-                // TODO: probably, here problem is fixed but I'am not sure
-                boolean isFinishedMessage = handshake.getType() == HandshakeType.FINISHED;
-
-                if (!isFinishedMessage) {
+                if (handshake.getType() != HandshakeType.FINISHED) {
                     saveHandshakeMessage(handshakeBytes);
                 }
 
                 handleHandshakeMessage(handshake);
-
-                if (isFinishedMessage && !this.fullHandshake) {
-                    // We shouldn't use inbound Finished message for the verification is we perform full handshake
-                    saveHandshakeMessage(handshakeBytes);
-                }
 
                 break;
 
@@ -343,6 +335,7 @@ public class TlsConnection implements Connection {
                 if (this.fullHandshake) {
                     handshakeFinished();
                 } else {
+                    saveHandshakeMessage(Encoder.writeToArray(finished, TlsEncoder::writeHandshake));
                     finishAbbreviatedHandshake();
                 }
         }
@@ -352,6 +345,8 @@ public class TlsConnection implements Connection {
         switch (type) {
             case DHE:
                 return new DHEKeyExchange(this.context);
+            case RSA:
+                return new RSAKeyExchange(this.context);
         }
 
         throw new UnsupportedOperationException(type + " is not supported yet");
@@ -397,10 +392,6 @@ public class TlsConnection implements Connection {
         Dumper.dumpToStdout(masterSecret);
 
         byte[] keyMaterial = generateKeyMaterial(masterSecret, (macSize + encryptionKeySize + fixedIvSize) * 2);
-
-        System.out.println("Key material:");
-        Dumper.dumpToStdout(keyMaterial);
-
         ByteBuffer keysBuffer = ByteBuffer.wrap(keyMaterial);
 
         byte[] clientMacKey = IO.readBytes(keysBuffer, macSize);
@@ -530,6 +521,9 @@ public class TlsConnection implements Connection {
     }
 
     private void handleAlertMessage(Alert alert) throws IOException {
+
+        System.err.println(alert);
+
         if (alert.getDescription() == AlertDescription.CLOSE_NOTIFY) {
             closeInternal();
         }
