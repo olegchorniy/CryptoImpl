@@ -1,5 +1,6 @@
 package crypt.ssl;
 
+import crypt.ssl.connection.Session;
 import crypt.ssl.connection.TlsConnection;
 import crypt.ssl.messages.ASN1Certificate;
 import crypt.ssl.messages.handshake.CertificateMessage;
@@ -26,19 +27,32 @@ public class SslTest {
 
     public static void main(String[] args) throws Exception {
         //bcSslClient();
-
-        //TODO: Am I write that a Reader holds internal buffer and that is the reason why we see ALERT between
-        //TODO: several text fragment dumps?
-        newSslClient();
+        //newSslClient();
+        Session session = newSslClient();
+        resumeSession(session);
     }
 
-    public static void newSslClient() throws Exception {
+    public static Session newSslClient() throws Exception {
 
-        String host = "id.tmtm.ru";
-        String path = "/login/";
-        int port = 443;
+        String host = "localhost"; //"id.tmtm.ru";
+        String path = "/test"; //"/login/";
+        int port = 8090;
 
         try (TlsConnection connection = new TlsConnection(CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA)) {
+            connection.connect(host, port);
+
+            doSimpleHttpRequest(host, path, connection.getOutput(), connection.getInput());
+
+            return connection.getSession();
+        }
+    }
+
+    public static void resumeSession(Session session) throws Exception {
+        String host = "localhost"; //"id.tmtm.ru";
+        String path = "/"; //"/login/";
+        int port = 8090;
+
+        try (TlsConnection connection = new TlsConnection(session)) {
             connection.connect(host, port);
 
             doSimpleHttpRequest(host, path, connection.getOutput(), connection.getInput());
@@ -102,10 +116,8 @@ public class SslTest {
 
         /* Receive response */
         try {
-
-            System.out.println(new Date());
-            //textDump(is);
-            dump(is);
+            textDump(is);
+            //dump(is);
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println(new Date());

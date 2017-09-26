@@ -1,6 +1,7 @@
 package crypt.ssl.messages;
 
 import crypt.ssl.Constants;
+import crypt.ssl.utils.Hex;
 import lombok.*;
 
 @Getter
@@ -14,4 +15,9 @@ public class SessionId {
 
     @VarLength(1) //max length = 32
     private byte[] value;
+
+    @Override
+    public String toString() {
+        return "SessionId(" + Hex.toHex(value) + ')';
+    }
 }

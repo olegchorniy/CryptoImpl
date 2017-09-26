@@ -47,10 +47,11 @@ public class MessageStream {
         this.out = out;
     }
 
-    protected MessageStream(Buffer messages) {
+    protected MessageStream(Buffer messages, ContentType contentType) {
         this(null, null, null);
 
         messagesBuffer.putBytes(messages.peekBytes());
+        lastContentType = contentType;
     }
 
     public void setRecordVersion(ProtocolVersion recordVersion) {
@@ -187,6 +188,12 @@ public class MessageStream {
     }
 
     private boolean readRecordIntoBuffer() throws IOException {
+
+        // For testing
+        if (in == null) {
+            return false;
+        }
+
         TlsRecord record = TlsDecoder.readRecord(in);
         if (record == null) {
             return false;

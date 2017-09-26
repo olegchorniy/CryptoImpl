@@ -6,7 +6,6 @@ import crypt.ssl.digest.HashAlgorithm;
 import crypt.ssl.encoding.Encoder;
 import crypt.ssl.encoding.TlsDecoder;
 import crypt.ssl.encoding.TlsEncoder;
-import crypt.ssl.exceptions.NoCloseNotifyException;
 import crypt.ssl.exceptions.TlsAlertException;
 import crypt.ssl.exceptions.TlsException;
 import crypt.ssl.exceptions.TlsUnexpectedMessageException;
@@ -82,10 +81,12 @@ public class TlsConnection implements Connection {
         this(TlsConfigurer.forSuites(supportedCipherSuites));
     }
 
-    public TlsConnection(TlsConfigurer configurer) {
-        Assert.assertNotNull(configurer.getSuites());
+    public TlsConnection(Session session) {
+        this(TlsConfigurer.forSession(session));
+    }
 
-        this.supportedCipherSuites = configurer.getSuites();
+    public TlsConnection(TlsConfigurer configurer) {
+        this.supportedCipherSuites = defaultSuitesIfEmpty(configurer.getSuites());
 
         this.context = new TlsContext();
         this.context.setSecurityParameters(this.parameters);
@@ -99,6 +100,18 @@ public class TlsConnection implements Connection {
             this.session = session;
             this.fullHandshake = false;
         }
+    }
+
+    private List<CipherSuite> defaultSuitesIfEmpty(List<CipherSuite> suites) {
+        if (suites == null || suites.isEmpty()) {
+            return Arrays.asList(ALL_SUITES);
+        }
+
+        return suites;
+    }
+
+    public Session getSession() {
+        return session;
     }
 
     @Override
@@ -124,7 +137,8 @@ public class TlsConnection implements Connection {
         this.state = ConnectionState.HANDSHAKE;
         this.handshakeState = HandshakeState.CLIENT_HELLO_SENT;
 
-        while (this.state != ConnectionState.ESTABLISHED) {
+        // TODO: CLOSED or FAILED or just throw exception
+        while (this.state != ConnectionState.ESTABLISHED && this.state != ConnectionState.CLOSED) {
             //TODO: connection may become closed during handshake, handle that
             readAndHandleMessage();
         }
@@ -158,7 +172,10 @@ public class TlsConnection implements Connection {
     private void readAndHandleMessage() throws IOException {
         RawMessage message = this.messageStream.readMessage();
         if (message == null) {
-            throw new NoCloseNotifyException();
+            //TODO: uncomment?
+            //throw new NoCloseNotifyException();
+            this.state = ConnectionState.CLOSED;
+            return;
         }
 
         try {
@@ -175,7 +192,7 @@ public class TlsConnection implements Connection {
         System.out.println("Handshake state = " + this.handshakeState);
         System.out.println("ContentType = " + message.getContentType());
         System.out.println("Message length = " + message.getMessageBody().remaining());
-        // System.out.println("Message = " + message.toString());
+        System.out.println("Message = " + message.toString());
 
         ByteBuffer body = message.getMessageBody();
 
@@ -184,8 +201,13 @@ public class TlsConnection implements Connection {
                 byte[] handshakeBytes = Bits.toArray(body);
                 HandshakeMessage handshake = TlsDecoder.readHandshake(body);
 
-                if (handshake.getType() != HandshakeType.FINISHED) {
-                    // We shouldn't use inbound Finished messages for verification data computions
+                // TODO: THERE IS A PROBLEM HERE !!!!
+                if (this.fullHandshake && handshake.getType() != HandshakeType.FINISHED) {
+                    saveHandshakeMessage(handshakeBytes);
+                }
+
+                if (!this.fullHandshake) {
+                    // We shouldn't use inbound Finished message for the verification is we perform full handshake
                     saveHandshakeMessage(handshakeBytes);
                 }
 
@@ -339,7 +361,7 @@ public class TlsConnection implements Connection {
         sendClientKeyExchange();
 
         /* We need to calculate keys now because following messages should be encrypted */
-        this.session.setPreMasterSecret(this.keyExchange.generatePreMasterSecret());
+        computeSecrets();
         computeKeys();
 
         sendChangeCipherSpec();
@@ -348,18 +370,25 @@ public class TlsConnection implements Connection {
         sendFinished();
     }
 
+    private void computeSecrets() {
+        byte[] preMasterSecret = this.keyExchange.generatePreMasterSecret();
+
+        System.out.println("PreMasterSecret:");
+        Dumper.dumpToStdout(preMasterSecret);
+
+        byte[] masterSecret = calculateMasterSecret(preMasterSecret);
+
+        this.session.setMasterSecret(masterSecret);
+    }
+
     private void computeKeys() {
-        byte[] preMasterSecret = this.session.getPreMasterSecret();
         CipherSuite cipherSuite = parameters.getCipherSuite();
 
         int macSize = cipherSuite.getMacKeyLength();
         int encryptionKeySize = cipherSuite.getEncryptionKeySize();
         int fixedIvSize = cipherSuite.getFixedIvSize();
 
-        byte[] masterSecret = calculateMasterSecret(preMasterSecret);
-
-        System.out.println("PreMasterSecret:");
-        Dumper.dumpToStdout(preMasterSecret);
+        byte[] masterSecret = this.session.getMasterSecret();
 
         System.out.println("MasterSecret:");
         Dumper.dumpToStdout(masterSecret);
@@ -405,11 +434,6 @@ public class TlsConnection implements Connection {
         return Bits.concat(first.toByteArray(), second.toByteArray());
     }
 
-    private PRF createPRFInstance() {
-        // RFC-5246 states that SHA-256 should be used unless other PRF is defined by a negotiated cipher suited.
-        return new DigestPRF(HashAlgorithm.SHA256);
-    }
-
     private void finishAbbreviatedHandshake() throws IOException {
         sendChangeCipherSpec();
         sendFinished();
@@ -438,12 +462,20 @@ public class TlsConnection implements Connection {
         sendHandshakeMessage(new Finished(verifyData));
     }
 
-    private void verifyFinished(Finished finished) {
+    private void verifyFinished(Finished finished) throws IOException {
         byte[] serverVerifyData = computeVerifyData("server finished");
         System.out.println("Server's verifyData = " + Hex.toHex(serverVerifyData));
 
         if (!Arrays.equals(serverVerifyData, finished.getVerifyData())) {
             // TODO: replace with a correct alert exception
+
+            MessageStream stream = new MessageStream(this.handshakeMessages, ContentType.HANDSHAKE);
+            RawMessage message;
+
+            while ((message = stream.readMessage()) != null) {
+                System.out.println(Arrays.toString(IO.readBytes(message.getMessageBody(), 1)));
+            }
+
             throw new RuntimeException("Verification failed");
         }
     }
@@ -452,6 +484,11 @@ public class TlsConnection implements Connection {
         byte[] masterSecret = this.parameters.getMasterSecret();
         byte[] handshakesHash = computeHandshakesHash();
         return createPRFInstance().compute(masterSecret, label, handshakesHash, 12);
+    }
+
+    private PRF createPRFInstance() {
+        // RFC-5246 states that SHA-256 should be used unless other PRF is defined by a negotiated cipher suite.
+        return new DigestPRF(HashAlgorithm.SHA256);
     }
 
     /* ---------------------- ChangeCipherSpec related methods ------------------------ */
@@ -627,18 +664,10 @@ public class TlsConnection implements Connection {
 
         @Override
         public int read() throws IOException {
-            // TODO: Rewrite this for the optimization purpose
-            // TODO: handle closing properly
-
-            if (state == ConnectionState.CLOSED) {
-                return -1;
-            }
-
             while (applicationDataBuffer.isEmpty()) {
-                // TODO: strange behavior without this clause (with reading from IS and from Reader)
-                /*if (state == ConnectionState.CLOSED) {
+                if (state == ConnectionState.CLOSED) {
                     return -1;
-                }*/
+                }
 
                 readAndHandleMessage();
             }
@@ -661,7 +690,6 @@ public class TlsConnection implements Connection {
 
         @Override
         public void write(byte[] b, int off, int len) throws IOException {
-            // TODO: handle closing properly
             checkArguments(b, off, len);
 
             messageStream.writeMessage(ContentType.APPLICATION_DATA, ByteBuffer.wrap(b, off, len));
