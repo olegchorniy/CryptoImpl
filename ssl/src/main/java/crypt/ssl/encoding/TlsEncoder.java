@@ -84,7 +84,7 @@ public abstract class TlsEncoder {
         IO.writeEnumConstants(out, compressionMethods);
     }
 
-    private static void writeRandom(OutputStream out, RandomValue random) throws IOException {
+    public static void writeRandom(OutputStream out, RandomValue random) throws IOException {
         IO.writeInt32(out, random.getGmtUnitTime());
         IO.writeBytes(out, random.getRandomBytes());
     }

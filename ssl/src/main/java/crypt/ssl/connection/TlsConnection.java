@@ -1,6 +1,7 @@
 package crypt.ssl.connection;
 
 import crypt.ssl.CipherSuite;
+import crypt.ssl.TlsExceptions;
 import crypt.ssl.digest.DigestFactory;
 import crypt.ssl.digest.HashAlgorithm;
 import crypt.ssl.encoding.Encoder;
@@ -461,16 +462,7 @@ public class TlsConnection implements Connection {
         System.out.println("Server's verifyData = " + Hex.toHex(serverVerifyData));
 
         if (!Arrays.equals(serverVerifyData, finished.getVerifyData())) {
-            // TODO: replace with a correct alert exception
-
-            MessageStream stream = new MessageStream(this.handshakeMessages, ContentType.HANDSHAKE);
-            RawMessage message;
-
-            while ((message = stream.readMessage()) != null) {
-                System.out.println(Arrays.toString(IO.readBytes(message.getMessageBody(), 1)));
-            }
-
-            throw new RuntimeException("Verification failed");
+            throw TlsExceptions.decryptError();
         }
     }
 
@@ -636,7 +628,6 @@ public class TlsConnection implements Connection {
         NEW,
         HANDSHAKE,
         ESTABLISHED,
-        FAILED,
         CLOSED
     }
 

@@ -1,0 +1,102 @@
+record_overflow
+  A TLSCiphertext record was received that had a length more than
+  2^14+2048 bytes, or a record decrypted to a TLSCompressed record
+  with more than 2^14+1024 bytes.  This message is always fatal and
+  should never be observed in communication between proper
+  implementations (except when messages were corrupted in the
+  network).
+
+handshake_failure
+  Reception of a handshake_failure alert message indicates that the
+  sender was unable to negotiate an acceptable set of security
+  parameters given the options available.  This is a fatal error.
+
+bad_certificate
+  A certificate was corrupt, contained signatures that did not
+  verify correctly, etc.
+
+unsupported_certificate
+  A certificate was of an unsupported type.
+
+certificate_revoked
+  A certificate was revoked by its signer.
+
+certificate_expired
+  A certificate has expired or is not currently valid.
+
+certificate_unknown
+  Some other (unspecified) issue arose in processing the
+  certificate, rendering it unacceptable.
+
+illegal_parameter
+  A field in the handshake was out of range or inconsistent with
+  other fields.  This message is always fatal.
+
+unknown_ca
+  A valid certificate chain or partial chain was received, but the
+  certificate was not accepted because the CA certificate could not
+  be located or couldn't be matched with a known, trusted CA.  This
+  message is always fatal.
+
+access_denied
+  A valid certificate was received, but when access control was
+  applied, the sender decided not to proceed with negotiation.  This
+  message is always fatal.
+
+decode_error
+  A message could not be decoded because some field was out of the
+  specified range or the length of the message was incorrect.  This
+  message is always fatal and should never be observed in
+  communication between proper implementations (except when messages
+  were corrupted in the network).
+
+decrypt_error
+  A handshake cryptographic operation failed, including being unable
+  to correctly verify a signature or validate a Finished message.
+  This message is always fatal.
+
+export_restriction_RESERVED
+  This alert was used in some earlier versions of TLS.  It MUST NOT
+  be sent by compliant implementations.
+
+protocol_version
+  The protocol version the client has attempted to negotiate is
+  recognized but not supported.  (For example, old protocol versions
+  might be avoided for security reasons.)  This message is always
+  fatal.
+
+insufficient_security
+  Returned instead of handshake_failure when a negotiation has
+  failed specifically because the server requires ciphers more
+  secure than those supported by the client.  This message is always
+  fatal.
+
+internal_error
+  An internal error unrelated to the peer or the correctness of the
+  protocol (such as a memory allocation failure) makes it impossible
+  to continue.  This message is always fatal.
+
+user_canceled
+  This handshake is being canceled for some reason unrelated to a
+  protocol failure.  If the user cancels an operation after the
+  handshake is complete, just closing the connection by sending a
+  close_notify is more appropriate.  This alert should be followed
+  by a close_notify.  This message is generally a warning.
+
+no_renegotiation
+  Sent by the client in response to a hello request or by the server
+  in response to a client hello after initial handshaking.  Either
+  of these would normally lead to renegotiation; when that is not
+  appropriate, the recipient should respond with this alert.  At
+  that point, the original requester can decide whether to proceed
+  with the connection.  One case where this would be appropriate is
+  where a server has spawned a process to satisfy a request; the
+  process might receive security parameters (key length,
+  authentication, etc.) at startup, and it might be difficult to
+  communicate changes to these parameters after that point.  This
+  message is always a warning.
+
+unsupported_extension
+  sent by clients that receive an extended server hello containing
+  an extension that they did not put in the corresponding client
+  hello.  This message is always fatal.

@@ -1,3 +1,4 @@
+    0. DH parameters signature verification
     1. Certificate verification procedure
  +  2. Session resuming (abbreviated handshake)
  +  3. RSA key exchange scheme
@@ -5,3 +6,4 @@
  +  5. Make hash functions selection clear
     6. Add alert notifications according to the RFC
     7. Handle connection closing properly
+    8. Message pretty printing

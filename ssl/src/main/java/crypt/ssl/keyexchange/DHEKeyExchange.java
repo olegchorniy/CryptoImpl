@@ -1,13 +1,19 @@
 package crypt.ssl.keyexchange;
 
+import crypt.ssl.TlsExceptions;
+import crypt.ssl.connection.SecurityParameters;
 import crypt.ssl.connection.TlsContext;
 import crypt.ssl.encoding.Encoder;
 import crypt.ssl.encoding.KeyExchangeDecoder;
 import crypt.ssl.encoding.KeyExchangeEncoder;
+import crypt.ssl.encoding.TlsEncoder;
+import crypt.ssl.exceptions.TlsAlertException;
 import crypt.ssl.messages.handshake.ServerKeyExchange;
 import crypt.ssl.messages.keyexchange.dh.ClientDHPublic;
 import crypt.ssl.messages.keyexchange.dh.ServerDHParams;
 import crypt.ssl.messages.keyexchange.dh.SignedDHParams;
+import crypt.ssl.signature.SignatureAndHashAlgorithm;
+import crypt.ssl.signature.SignatureFactory;
 
 import javax.crypto.KeyAgreement;
 import javax.crypto.spec.DHParameterSpec;
@@ -40,7 +46,7 @@ public class DHEKeyExchange implements KeyExchange {
     }
 
     @Override
-    public void processServerKeyExchange(ServerKeyExchange serverKeyExchange) {
+    public void processServerKeyExchange(ServerKeyExchange serverKeyExchange) throws TlsAlertException {
         ByteBuffer data = serverKeyExchange.getData();
         SignedDHParams signedDHParams = KeyExchangeDecoder.readDHKEParams(data);
 
@@ -49,8 +55,29 @@ public class DHEKeyExchange implements KeyExchange {
         this.serverDHParams = signedDHParams.getServerDHParams();
     }
 
-    private void checkSignature(SignedDHParams signedDHParams) {
-        //TODO: check signature
+    private void checkSignature(SignedDHParams signedDHParams) throws TlsAlertException {
+        try {
+            Signature signature = getSignature(signedDHParams.getSignatureAndHashAlgorithm());
+            SecurityParameters parameters = this.context.getSecurityParameters();
+
+            update(signature, parameters.getClientRandom(), TlsEncoder::writeRandom);
+            update(signature, parameters.getServerRandom(), TlsEncoder::writeRandom);
+            update(signature, signedDHParams.getServerDHParams(), KeyExchangeEncoder::writeServerDHParams);
+
+            if (!signature.verify(signedDHParams.getSignature())) {
+                throw TlsExceptions.decryptError();
+            }
+
+        } catch (GeneralSecurityException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Signature getSignature(SignatureAndHashAlgorithm algorithm) throws InvalidKeyException {
+        Signature signature = SignatureFactory.getInstance(algorithm);
+        signature.initVerify(certificate);
+
+        return signature;
     }
 
     @Override
@@ -82,6 +109,8 @@ public class DHEKeyExchange implements KeyExchange {
             throw new RuntimeException(e);
         }
     }
+
+    /* ------------------- Diffie-Hellman algorithm routines --------------------- */
 
     private static KeyPair generateClientDHKeyPair(ServerDHParams serverDHParams) throws GeneralSecurityException {
         BigInteger p = serverDHParams.getP();
@@ -117,5 +146,11 @@ public class DHEKeyExchange implements KeyExchange {
         keyAgreement.doPhase(serverPublicKey, true);
 
         return keyAgreement.generateSecret();
+    }
+
+    /* ------------------------ Signature Utils ---------------------- */
+
+    private static <T> void update(Signature signature, T object, Encoder<T> encoder) throws SignatureException {
+        signature.update(Encoder.writeToArray(object, encoder));
     }
 }

@@ -2,6 +2,7 @@ package crypt.ssl.utils;
 
 import crypt.ssl.TlsExceptions;
 import crypt.ssl.messages.TlsEnum;
+import org.bouncycastle.util.BigIntegers;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -81,6 +82,11 @@ public abstract class IO {
     public static void writeOpaque16(OutputStream out, byte[] opaque) throws IOException {
         writeInt16(out, opaque.length);
         writeBytes(out, opaque);
+    }
+
+    public static void writeBigInteger(OutputStream out, BigInteger value) throws IOException {
+        byte[] bytes = BigIntegers.asUnsignedByteArray(value);
+        IO.writeOpaque16(out, bytes);
     }
 
     /* --------------------------------------------------- */

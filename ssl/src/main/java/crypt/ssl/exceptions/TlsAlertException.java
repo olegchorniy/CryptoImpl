@@ -3,7 +3,7 @@ package crypt.ssl.exceptions;
 import crypt.ssl.messages.alert.AlertDescription;
 import crypt.ssl.messages.alert.AlertLevel;
 
-public abstract class TlsAlertException extends TlsException {
+public class TlsAlertException extends TlsException {
 
     private final AlertLevel level;
     private final AlertDescription description;
@@ -19,5 +19,9 @@ public abstract class TlsAlertException extends TlsException {
 
     public AlertDescription getDescription() {
         return description;
+    }
+
+    public static TlsAlertException fatal(AlertDescription description) {
+        return new TlsAlertException(AlertLevel.FATAL, description);
     }
 }

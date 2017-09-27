@@ -1,10 +1,12 @@
 package crypt.ssl.cipher;
 
 import crypt.ssl.CipherSuite;
+import crypt.ssl.TlsExceptions;
 import crypt.ssl.connection.KeyParameters;
 import crypt.ssl.connection.TlsContext;
 import crypt.ssl.encoding.Encoder;
 import crypt.ssl.encoding.TlsEncoder;
+import crypt.ssl.exceptions.TlsAlertException;
 import crypt.ssl.mac.MacFactory;
 import crypt.ssl.messages.ContentType;
 import crypt.ssl.messages.ProtocolVersion;
@@ -75,36 +77,39 @@ public class BlockCipher implements TlsCipher {
         Record structure: iv | [content | mac | padding]
      */
     @Override
-    public byte[] decrypt(ContentType type, ProtocolVersion version, byte[] data) {
-        if (data.length == 0) {
-            //TODO: I know about possible empty encrypted messages. But should the IV be present though?
-            return data;
+    public byte[] decrypt(ContentType type, ProtocolVersion version, byte[] data) throws TlsAlertException {
+        int blockSize = this.cipherSuite.getBlockSize();
+        int macLength = this.cipherSuite.getMacLength();
+
+        if (data.length < blockSize) {
+            throw TlsExceptions.decodeError();
         }
 
-        int blockSize = this.cipherSuite.getBlockSize();
-
         if (data.length % blockSize != 0) {
-            throw new RuntimeException("Bad padding or ... whatever");
+            throw TlsExceptions.badMac();
         }
 
         // 0. Prepare parameters and decrypt record
         byte[] iv = Arrays.copyOfRange(data, 0, blockSize);
         byte[] key = this.keyParams.getEncryptionKey();
 
-        byte[] input = Arrays.copyOfRange(data, blockSize, data.length);
-        byte[] plainText = CipherUtils.decrypt(this.cipherSuite, iv, key, input);
+        byte[] cipherText = Arrays.copyOfRange(data, blockSize, data.length);
+        byte[] plainText = CipherUtils.decrypt(this.cipherSuite, iv, key, cipherText);
+
+        if (plainText.length < blockSize) {
+            // We expect at least one block because of the employed padding scheme
+            throw TlsExceptions.decodeError();
+        }
 
         // 1. Check padding
         int paddingStart = checkPadding(plainText);
 
         // 2. Check MAC
-        int macLength = this.cipherSuite.getMacLength();
-
         byte[] content = Arrays.copyOfRange(plainText, 0, paddingStart - macLength);
         byte[] mac = Arrays.copyOfRange(plainText, content.length, paddingStart);
 
         if (!Arrays.equals(mac, calculateMac(new TlsRecord(type, version, content)))) {
-            throw new RuntimeException("Bad mac");
+            throw TlsExceptions.badMac();
         }
 
         return content;
@@ -116,13 +121,17 @@ public class BlockCipher implements TlsCipher {
         }
     }
 
-    private int checkPadding(byte[] input) {
+    private int checkPadding(byte[] input) throws TlsAlertException {
         int paddingByte = Byte.toUnsignedInt(input[input.length - 1]);
         int paddingStart = input.length - 1 - paddingByte;
 
+        if (paddingStart < 0 || paddingStart >= input.length - 1) {
+            throw TlsExceptions.badMac();
+        }
+
         for (int i = paddingStart; i < input.length - 1; i++) {
             if (Byte.toUnsignedInt(input[i]) != paddingByte) {
-                throw new RuntimeException("bad padding");
+                throw TlsExceptions.badMac();
             }
         }
 
