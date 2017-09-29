@@ -3,6 +3,7 @@ package crypt.ssl.testing;
 import crypt.ssl.SslTest;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -20,8 +21,12 @@ public class ClientServerTest {
 
             Thread.sleep(1000);
 
-            System.out.println("Dumping input data: " + new Date());
-            SslTest.dump(socket.getInputStream());
+            log("Dumping input data");
+            SslTest.dump(socket.getInputStream(), 4);
+
+            System.out.println(socket.getInputStream().read());
+
+            log("Dumping finished");
         }
     }
 
@@ -29,12 +34,24 @@ public class ClientServerTest {
         runInNewThread(() -> {
             try (ServerSocket serverSocket = new ServerSocket(PORT)) {
                 Socket clientSocket = serverSocket.accept();
-                clientSocket.getOutputStream().write(new byte[]{1, 2, 3, 4});
-                clientSocket.close();
+                OutputStream out = clientSocket.getOutputStream();
 
-                System.err.println("Client connection closed: " + new Date());
+                out.write(0xCA);
+                out.write(0xFE);
+                out.write(0xBA);
+                out.write(0xBE);
+
+                out.close();
+
+                sleep(5000);
+
+                clientSocket.close();
+                log("Client connection closed");
+
+                sleep(2000);
+
             } catch (Exception e) {
-                System.out.println(e);
+                e.printStackTrace();
             }
         });
     }
@@ -43,5 +60,17 @@ public class ClientServerTest {
         Thread thread = new Thread(runnable);
         thread.start();
         return thread;
+    }
+
+    private static void sleep(int millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void log(String string) {
+        System.out.printf("[%s][%s]: %s%n", Thread.currentThread().getName(), new Date(), string);
     }
 }

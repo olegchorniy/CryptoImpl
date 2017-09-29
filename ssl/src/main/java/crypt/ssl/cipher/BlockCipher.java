@@ -6,7 +6,7 @@ import crypt.ssl.connection.KeyParameters;
 import crypt.ssl.connection.TlsContext;
 import crypt.ssl.encoding.Encoder;
 import crypt.ssl.encoding.TlsEncoder;
-import crypt.ssl.exceptions.TlsAlertException;
+import crypt.ssl.exceptions.TlsFatalException;
 import crypt.ssl.mac.MacFactory;
 import crypt.ssl.messages.ContentType;
 import crypt.ssl.messages.ProtocolVersion;
@@ -77,7 +77,7 @@ public class BlockCipher implements TlsCipher {
         Record structure: iv | [content | mac | padding]
      */
     @Override
-    public byte[] decrypt(ContentType type, ProtocolVersion version, byte[] data) throws TlsAlertException {
+    public byte[] decrypt(ContentType type, ProtocolVersion version, byte[] data) throws TlsFatalException {
         int blockSize = this.cipherSuite.getBlockSize();
         int macLength = this.cipherSuite.getMacLength();
 
@@ -121,7 +121,7 @@ public class BlockCipher implements TlsCipher {
         }
     }
 
-    private int checkPadding(byte[] input) throws TlsAlertException {
+    private int checkPadding(byte[] input) throws TlsFatalException {
         int paddingByte = Byte.toUnsignedInt(input[input.length - 1]);
         int paddingStart = input.length - 1 - paddingByte;
 

@@ -38,6 +38,17 @@ public enum CipherSuite implements TlsEnum {
             20
     ),
 
+    TLS_RSA_WITH_AES_128_CBC_SHA      (0x002F,
+            KeyExchangeType.RSA,
+            HashAlgorithm.SHA1,
+            CipherType.BLOCK_CIPHER,
+            BulkCipherAlgorithm.AES,
+            16,
+            16,
+            20,
+            20
+    ),
+
     TLS_RSA_WITH_AES_128_CBC_SHA256      (0x003C,
             KeyExchangeType.RSA,
             HashAlgorithm.SHA256,
@@ -89,7 +100,7 @@ public enum CipherSuite implements TlsEnum {
         this.macKeyLength = macKeyLength;
     }
 
-    //TODO: define properly
+    //TODO: define properly for AEAD ciphers
     public int getFixedIvSize() {
         return 0;
     }

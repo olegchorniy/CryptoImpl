@@ -1,6 +1,6 @@
 package crypt.ssl;
 
-import crypt.ssl.exceptions.TlsAlertException;
+import crypt.ssl.exceptions.TlsFatalException;
 import crypt.ssl.messages.alert.AlertDescription;
 
 import java.io.EOFException;
@@ -10,16 +10,20 @@ public abstract class TlsExceptions {
     private TlsExceptions() {
     }
 
-    public static TlsAlertException decryptError() {
-        return TlsAlertException.fatal(AlertDescription.DECRYPT_ERROR);
+    public static TlsFatalException decryptError() {
+        return new TlsFatalException(AlertDescription.DECRYPT_ERROR);
     }
 
-    public static TlsAlertException badMac() {
-        return TlsAlertException.fatal(AlertDescription.BAD_RECORD_MAC);
+    public static TlsFatalException badMac() {
+        return new TlsFatalException(AlertDescription.BAD_RECORD_MAC);
     }
 
-    public static TlsAlertException decodeError() {
-        return TlsAlertException.fatal(AlertDescription.DECODE_ERROR);
+    public static TlsFatalException decodeError() {
+        return new TlsFatalException(AlertDescription.DECODE_ERROR);
+    }
+
+    public static TlsFatalException recordOverflow() {
+        return new TlsFatalException(AlertDescription.RECORD_OVERFLOW);
     }
 
     public static EOFException eofException(String message) {

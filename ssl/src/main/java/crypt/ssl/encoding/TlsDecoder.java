@@ -45,6 +45,7 @@ public abstract class TlsDecoder {
         ProtocolVersion version = IO.readEnum(header, ProtocolVersion.class);
 
         int length = IO.readInt16(header);
+        // Yeah, I guess we sure verify record's length before reading this number of bytes from the network, but ... who cares?
         byte[] recordBody = IO.readOrNull(in, length);
 
         if (recordBody == null) {

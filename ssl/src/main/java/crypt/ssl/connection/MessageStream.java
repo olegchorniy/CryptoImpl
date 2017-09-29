@@ -1,6 +1,7 @@
 package crypt.ssl.connection;
 
 import crypt.ssl.CipherSuite;
+import crypt.ssl.TlsExceptions;
 import crypt.ssl.cipher.BlockCipher;
 import crypt.ssl.cipher.TlsCipher;
 import crypt.ssl.encoding.TlsDecoder;
@@ -22,7 +23,13 @@ import static crypt.ssl.encoding.TlsDecoder.*;
 import static crypt.ssl.messages.ContentType.APPLICATION_DATA;
 import static java.lang.Math.min;
 
-//TODO: add flushes here or in the TlsConnection
+/**
+ * This class works with the record layer and is responsible for:
+ * <ul>
+ * <li>Fragmentation handling</li>
+ * <li>Encryption/decryption</li>
+ * </ul>
+ */
 public class MessageStream {
 
     public static final int PLAINTEXT_MAX_LENGTH = 1 << 14;
@@ -125,8 +132,6 @@ public class MessageStream {
 
     private ByteBuffer tryReadMessageBody(ContentType type) {
 
-        //TODO: add check of the message length
-
         switch (type) {
             case ALERT:
                 return tryReadAlert();
@@ -206,13 +211,23 @@ public class MessageStream {
         checkContentType(contentType);
 
         if (this.readCipher != null) {
+            checkLength(recordBody.length, ENCRYPTED_MAX_LENGTH);
+
             recordBody = this.readCipher.decrypt(contentType, version, recordBody);
         }
+
+        checkLength(recordBody.length, PLAINTEXT_MAX_LENGTH);
 
         this.messagesBuffer.putBytes(recordBody);
         this.lastContentType = contentType;
 
         return true;
+    }
+
+    private void checkLength(int actual, int expectedMax) throws IOException {
+        if (actual > expectedMax) {
+            throw TlsExceptions.recordOverflow();
+        }
     }
 
     private void checkContentType(ContentType contentType) {
@@ -233,6 +248,7 @@ public class MessageStream {
             TlsEncoder.writeRecord(out, new TlsRecord(type, this.recordVersion, recordData));
         }
 
+        // To prevent data from getting stuck in the internal OS buffers.
         out.flush();
     }
 }

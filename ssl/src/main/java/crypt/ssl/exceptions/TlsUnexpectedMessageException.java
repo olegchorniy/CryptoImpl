@@ -1,11 +1,10 @@
 package crypt.ssl.exceptions;
 
 import crypt.ssl.messages.alert.AlertDescription;
-import crypt.ssl.messages.alert.AlertLevel;
 
-public class TlsUnexpectedMessageException extends TlsAlertException {
+public class TlsUnexpectedMessageException extends TlsFatalException {
 
     public TlsUnexpectedMessageException() {
-        super(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
+        super(AlertDescription.UNEXPECTED_MESSAGE);
     }
 }

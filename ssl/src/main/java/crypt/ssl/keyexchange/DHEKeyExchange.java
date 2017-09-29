@@ -7,7 +7,7 @@ import crypt.ssl.encoding.Encoder;
 import crypt.ssl.encoding.KeyExchangeDecoder;
 import crypt.ssl.encoding.KeyExchangeEncoder;
 import crypt.ssl.encoding.TlsEncoder;
-import crypt.ssl.exceptions.TlsAlertException;
+import crypt.ssl.exceptions.TlsFatalException;
 import crypt.ssl.messages.handshake.ServerKeyExchange;
 import crypt.ssl.messages.keyexchange.dh.ClientDHPublic;
 import crypt.ssl.messages.keyexchange.dh.ServerDHParams;
@@ -31,7 +31,6 @@ public class DHEKeyExchange implements KeyExchange {
     private PrivateKey clientPrivateKey;
 
     public DHEKeyExchange(TlsContext context) {
-        //TODO: unused. Why?
         this.context = context;
     }
 
@@ -46,7 +45,7 @@ public class DHEKeyExchange implements KeyExchange {
     }
 
     @Override
-    public void processServerKeyExchange(ServerKeyExchange serverKeyExchange) throws TlsAlertException {
+    public void processServerKeyExchange(ServerKeyExchange serverKeyExchange) throws TlsFatalException {
         ByteBuffer data = serverKeyExchange.getData();
         SignedDHParams signedDHParams = KeyExchangeDecoder.readDHKEParams(data);
 
@@ -55,7 +54,7 @@ public class DHEKeyExchange implements KeyExchange {
         this.serverDHParams = signedDHParams.getServerDHParams();
     }
 
-    private void checkSignature(SignedDHParams signedDHParams) throws TlsAlertException {
+    private void checkSignature(SignedDHParams signedDHParams) throws TlsFatalException {
         try {
             Signature signature = getSignature(signedDHParams.getSignatureAndHashAlgorithm());
             SecurityParameters parameters = this.context.getSecurityParameters();

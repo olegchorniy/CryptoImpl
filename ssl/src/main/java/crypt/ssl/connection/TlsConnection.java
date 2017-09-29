@@ -8,8 +8,8 @@ import crypt.ssl.encoding.Encoder;
 import crypt.ssl.encoding.TlsDecoder;
 import crypt.ssl.encoding.TlsEncoder;
 import crypt.ssl.exceptions.NoCloseNotifyException;
-import crypt.ssl.exceptions.TlsAlertException;
 import crypt.ssl.exceptions.TlsException;
+import crypt.ssl.exceptions.TlsFatalException;
 import crypt.ssl.exceptions.TlsUnexpectedMessageException;
 import crypt.ssl.keyexchange.DHEKeyExchange;
 import crypt.ssl.keyexchange.KeyExchange;
@@ -141,10 +141,14 @@ public class TlsConnection implements Connection {
         this.state = ConnectionState.HANDSHAKE;
         this.handshakeState = HandshakeState.CLIENT_HELLO_SENT;
 
-        // TODO: CLOSED or FAILED or just throw exception
-        while (this.state != ConnectionState.ESTABLISHED && this.state != ConnectionState.CLOSED) {
-            //TODO: connection may become closed during handshake, handle that
+        while (this.state != ConnectionState.ESTABLISHED) {
             readAndHandleMessage();
+
+            // This may occur if we receive close_notify alert from the remote peer.
+            // No exceptions are thrown in this case, so we have to do this here.
+            if (this.state == ConnectionState.CLOSED) {
+                throw new IOException("Connection was closed during handshake");
+            }
         }
     }
 
@@ -181,10 +185,14 @@ public class TlsConnection implements Connection {
 
         try {
             handleMessage(message);
-        } catch (TlsAlertException alert) {
-            alert.printStackTrace();
-            sendAlert(alert.getLevel(), alert.getDescription());
-            //TODO: close the connection
+        } catch (TlsFatalException alert) {
+            sendAlert(AlertLevel.FATAL, alert.getDescription());
+
+            closeInternal();
+            throw alert;
+        } catch (IOException e) {
+            closeInternal();
+            throw e;
         }
     }
 
@@ -193,7 +201,7 @@ public class TlsConnection implements Connection {
         System.out.println("Handshake state = " + this.handshakeState);
         System.out.println("ContentType = " + message.getContentType());
         System.out.println("Message length = " + message.getMessageBody().remaining());
-        System.out.println("Message = " + message.toString());
+        //System.out.println("Message = " + message.toString());
 
         ByteBuffer body = message.getMessageBody();
 
@@ -271,7 +279,7 @@ public class TlsConnection implements Connection {
                     this.session.setCipherSuite(cipherSuite);
                 }
 
-                //TODO: do something useful with extensions
+                //TODO: Can we do something useful with extensions?
                 //serverHello.getExtensions();
 
                 this.handshakeState = HandshakeState.SERVER_HELLO_RECEIVED;
@@ -441,8 +449,6 @@ public class TlsConnection implements Connection {
         this.state = ConnectionState.ESTABLISHED;
 
         this.handshakeMessages = null;
-
-        //TODO: maybe perform some other kind of cleanup
     }
 
     private void sendClientKeyExchange() throws IOException {
@@ -514,21 +520,31 @@ public class TlsConnection implements Connection {
 
     private void handleAlertMessage(Alert alert) throws IOException {
 
-        System.err.println(alert);
+        AlertLevel level = alert.getLevel();
+        AlertDescription description = alert.getDescription();
 
-        if (alert.getDescription() == AlertDescription.CLOSE_NOTIFY) {
+        if (level == AlertLevel.FATAL) {
             closeInternal();
+
+            throw new IOException("Fatal alert received - " + alert.getDescription());
+        } else {
+            // TODO: that's all? Can we do anything else with alerts?
+            System.err.println("Warning alert received - " + alert);
         }
 
-        // TODO: find out how we should handle different types of alerts
+        if (description == AlertDescription.CLOSE_NOTIFY) {
+            closeInternal();
+        }
     }
 
     private void closeInternal() throws IOException {
         if (this.state != ConnectionState.CLOSED) {
-            //TODO: check
-            sendAlert(AlertLevel.FATAL, AlertDescription.CLOSE_NOTIFY);
             this.state = ConnectionState.CLOSED;
-            this.socket.close();
+
+            run(() -> sendAlert(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY));
+            run(() -> this.socket.close());
+
+            //TODO: what about other kinds of cleanup?
         }
     }
 
@@ -559,7 +575,28 @@ public class TlsConnection implements Connection {
             saveHandshakeMessage(messageBytes);
         }
 
-        this.messageStream.writeMessage(type, ByteBuffer.wrap(messageBytes));
+        doSendMessage(type, messageBytes);
+    }
+
+    /**
+     * Perform actual sending to the underlying message stream and handles some types of exceptions.
+     */
+    private void doSendMessage(ContentType type, byte[] body) throws IOException {
+        if (this.state == ConnectionState.CLOSED) {
+            throw new IOException("Connection is closed");
+        }
+
+        try {
+            this.messageStream.writeMessage(type, ByteBuffer.wrap(body));
+        } catch (TlsFatalException alert) {
+            sendAlert(AlertLevel.FATAL, alert.getDescription());
+
+            closeInternal();
+            throw alert;
+        } catch (IOException e) {
+            closeInternal();
+            throw e;
+        }
     }
 
     @Override
@@ -624,6 +661,17 @@ public class TlsConnection implements Connection {
         }
     }
 
+    private static void run(IOAction action) {
+        try {
+            action.run();
+        } catch (IOException ignore) {
+        }
+    }
+
+    private interface IOAction {
+        void run() throws IOException;
+    }
+
     private enum ConnectionState {
         NEW,
         HANDSHAKE,
@@ -664,6 +712,11 @@ public class TlsConnection implements Connection {
 
             return inBuff[0] & 0xFF;
         }
+
+        @Override
+        public void close() throws IOException {
+            closeInternal();
+        }
     }
 
     private class TlsOutputStream extends OutputStream {
@@ -677,21 +730,13 @@ public class TlsConnection implements Connection {
         }
 
         @Override
-        public void write(byte[] b, int off, int len) throws IOException {
-            checkArguments(b, off, len);
-
-            messageStream.writeMessage(ContentType.APPLICATION_DATA, ByteBuffer.wrap(b, off, len));
+        public void write(byte[] buff, int off, int len) throws IOException {
+            doSendMessage(ContentType.APPLICATION_DATA, Arrays.copyOfRange(buff, off, off + len));
         }
 
-        private void checkArguments(byte[] b, int off, int len) {
-            if (b == null) {
-                throw new NullPointerException();
-            }
-
-            if ((off < 0) || (off > b.length) || (len < 0) ||
-                    ((off + len) > b.length) || ((off + len) < 0)) {
-                throw new IndexOutOfBoundsException();
-            }
+        @Override
+        public void close() throws IOException {
+            closeInternal();
         }
     }
 }

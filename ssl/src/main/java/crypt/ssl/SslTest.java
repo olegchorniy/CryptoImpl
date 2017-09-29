@@ -40,15 +40,15 @@ public class SslTest {
 
     public static Session newSslClient() throws Exception {
 
-        String host = "localhost";
+        /*String host = "localhost";
         String path = "/test";
-        int port = 8090;
+        int port = 8090;*/
 
-        /*String host = "habrahabr.ru";
+        String host = "habrahabr.ru";
         String path = "/";
-        int port = 443;*/
+        int port = 443;
 
-        try (TlsConnection connection = new TlsConnection(CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA)) {
+        try (TlsConnection connection = new TlsConnection(CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA)) {
             connection.connect(host, port);
 
             doSimpleHttpRequest(host, path, connection.getOutput(), connection.getInput());
@@ -74,7 +74,7 @@ public class SslTest {
         int port = 8090;
         String path = "/test";*/
 
-        String host = "habrahabr.ru";
+        String host = "www.youtube.com";
         String path = "/";
         int port = 443;
 
@@ -87,7 +87,7 @@ public class SslTest {
                 @Override
                 public int[] getCipherSuites() {
                     return new int[]{
-                            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA256.getValue()
+                            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA.getValue()
                     };
                 }
 
