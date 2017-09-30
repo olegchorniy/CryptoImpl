@@ -16,6 +16,7 @@ public class TlsConfigurer {
     @Singular
     private List<CipherSuite> suites;
     private Session session;
+    private boolean validateCertificates = true;
 
     public static TlsConfigurer forSuites(CipherSuite... suites) {
         return builder().suites(Arrays.asList(suites)).build();

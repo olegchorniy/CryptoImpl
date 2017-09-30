@@ -10,6 +10,10 @@ public abstract class TlsExceptions {
     private TlsExceptions() {
     }
 
+    public static TlsFatalException internalError(Exception e) {
+        return new TlsFatalException(e, AlertDescription.INTERNAL_ERROR);
+    }
+
     public static TlsFatalException decryptError() {
         return new TlsFatalException(AlertDescription.DECRYPT_ERROR);
     }
@@ -24,6 +28,10 @@ public abstract class TlsExceptions {
 
     public static TlsFatalException recordOverflow() {
         return new TlsFatalException(AlertDescription.RECORD_OVERFLOW);
+    }
+
+    public static TlsFatalException badCertificate(Exception cause) {
+        return new TlsFatalException(cause, AlertDescription.BAD_CERTIFICATE);
     }
 
     public static EOFException eofException(String message) {

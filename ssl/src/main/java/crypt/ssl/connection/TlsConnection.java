@@ -65,6 +65,7 @@ public class TlsConnection implements Connection {
     private boolean fullHandshake;
 
     private KeyExchange keyExchange;
+    private CertificateValidator certValidator;
 
     private final Buffer applicationDataBuffer = new Buffer();
     // Used to compute hashes for Finished messages
@@ -103,6 +104,10 @@ public class TlsConnection implements Connection {
         } else {
             this.session = session;
             this.fullHandshake = false;
+        }
+
+        if (configurer.isValidateCertificates()) {
+            this.certValidator = new CertificateValidator();
         }
     }
 
@@ -296,9 +301,9 @@ public class TlsConnection implements Connection {
 
                 CertificateMessage certificate = safeCast(handshake, CertificateMessage.class);
 
-                //TODO: check certificate and store it's necessary parameters
+                validateCertificate(certificate);
 
-                this.keyExchange.processServerCertificate(certificate.getDecodedCertificate(0));
+                this.keyExchange.processServerCertificate(certificate.getCertificates().get(0));
 
                 this.handshakeState = HandshakeState.CERTIFICATE_RECEIVED;
                 return;
@@ -347,6 +352,13 @@ public class TlsConnection implements Connection {
                     saveHandshakeMessage(Encoder.writeToArray(finished, TlsEncoder::writeHandshake));
                     finishAbbreviatedHandshake();
                 }
+        }
+    }
+
+    private void validateCertificate(CertificateMessage certificate) throws IOException {
+        // null means that the certificate validation is disabled
+        if (this.certValidator != null) {
+            this.certValidator.validate(certificate.getCertificates());
         }
     }
 

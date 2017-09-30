@@ -1,33 +1,25 @@
 package crypt.ssl;
 
 import crypt.ssl.connection.Session;
+import crypt.ssl.connection.TlsConfigurer;
 import crypt.ssl.connection.TlsConnection;
-import crypt.ssl.messages.ASN1Certificate;
-import crypt.ssl.messages.handshake.CertificateMessage;
-import crypt.ssl.utils.CertificateDecoder;
 import crypt.ssl.utils.Hex;
 import org.bouncycastle.crypto.tls.*;
-import org.bouncycastle.jcajce.provider.asymmetric.x509.CertificateFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.x509.CertPathReviewerException;
-import org.bouncycastle.x509.PKIXCertPathReviewer;
 
+import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.security.InvalidAlgorithmParameterException;
 import java.security.SecureRandom;
 import java.security.Security;
-import java.security.cert.CertPath;
-import java.security.cert.CertificateException;
-import java.security.cert.PKIXParameters;
-import java.security.cert.X509Certificate;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
-import java.util.List;
 
 public class SslTest {
+
+    private static final Config LOCALHOST = new Config("localhost", "/test", 8090);
+    private static final Config HABRAHABR = new Config("habrahabr.ru", "/");
+    private static final Config YOUTUBE = new Config("www.youtube.com", "/");
 
     static {
         Security.addProvider(new BouncyCastleProvider());
@@ -36,19 +28,36 @@ public class SslTest {
     public static void main(String[] args) throws Exception {
         //bcSslClient();
         newSslClient();
+        //javaSSLEngine();
+    }
+
+    public static void javaSSLEngine() throws Exception {
+        Config config = LOCALHOST;
+        //Config config = HABRAHABR;
+
+        String host = config.host;
+        String path = config.path;
+        int port = config.port;
+
+        try (Socket socket = SSLSocketFactory.getDefault().createSocket(host, port)) {
+            doSimpleHttpRequest(host, path, socket.getOutputStream(), socket.getInputStream());
+        }
     }
 
     public static Session newSslClient() throws Exception {
 
-        /*String host = "localhost";
-        String path = "/test";
-        int port = 8090;*/
+        Config config = LOCALHOST;
 
-        String host = "habrahabr.ru";
-        String path = "/";
-        int port = 443;
+        String host = config.host;
+        String path = config.path;
+        int port = config.port;
 
-        try (TlsConnection connection = new TlsConnection(CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA)) {
+        TlsConfigurer configurer = TlsConfigurer.builder()
+                .suite(CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA)
+                .validateCertificates(false)
+                .build();
+
+        try (TlsConnection connection = new TlsConnection(configurer)) {
             connection.connect(host, port);
 
             doSimpleHttpRequest(host, path, connection.getOutput(), connection.getInput());
@@ -96,21 +105,6 @@ public class SslTest {
                     return new ServerOnlyTlsAuthentication() {
                         @Override
                         public void notifyServerCertificate(Certificate serverCertificate) throws IOException {
-
-                            try {
-
-                                // https://stackoverflow.com/questions/2457795/x-509-certificate-validation-with-java-and-bouncycastle
-
-                                // TODO: code below doesn't work, but it's a good starting point
-                                CertPath certPath = new CertificateFactory().engineGenerateCertPath(Arrays.asList(serverCertificate.getCertificateList()));
-
-                                PKIXCertPathReviewer validator = new PKIXCertPathReviewer();
-                                validator.init(certPath, new PKIXParameters(Collections.emptySet()));
-
-                                System.out.println(Arrays.toString(validator.getErrors()));
-                            } catch (CertificateException | InvalidAlgorithmParameterException | CertPathReviewerException e) {
-                                e.printStackTrace();
-                            }
                         }
                     };
                 }
@@ -122,19 +116,16 @@ public class SslTest {
         });
     }
 
-    private static X509Certificate getServerCertificate(CertificateMessage certificateMessage) throws CertificateException {
-        List<ASN1Certificate> certificates = certificateMessage.getCertificates();
-        byte[] x509Certificate = certificates.get(0).getContent();
-
-        return CertificateDecoder.decodeCertificate(x509Certificate);
-    }
-
     public static void runSimpleHttpRequest() throws IOException {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress("localhost", 8090));
 
             doSimpleHttpRequest("localhost", "/test", socket.getOutputStream(), socket.getInputStream());
         }
+    }
+
+    public static void doSimpleHttpRequest(Config config, OutputStream os, InputStream is) throws IOException {
+        doSimpleHttpRequest(config.host, config.path, os, is);
     }
 
     public static void doSimpleHttpRequest(String host, String path, OutputStream os, InputStream is) throws IOException {
@@ -210,5 +201,23 @@ public class SslTest {
 
     private interface SocketIOConsumer {
         void consume(InputStream is, OutputStream os) throws Exception;
+    }
+
+    private static class Config {
+        final String host;
+        final String path;
+        final int port;
+
+        private Config(String host, String path, int port) {
+            this.host = host;
+            this.path = path;
+            this.port = port;
+        }
+
+        public Config(String host, String path) {
+            this.host = host;
+            this.path = path;
+            this.port = 443;
+        }
     }
 }

@@ -2,6 +2,7 @@ package crypt.ssl.encoding;
 
 import crypt.ssl.CipherSuite;
 import crypt.ssl.Constants;
+import crypt.ssl.TlsExceptions;
 import crypt.ssl.messages.*;
 import crypt.ssl.messages.Extensions.ExtensionsBuilder;
 import crypt.ssl.messages.alert.Alert;
@@ -9,12 +10,15 @@ import crypt.ssl.messages.alert.AlertDescription;
 import crypt.ssl.messages.alert.AlertLevel;
 import crypt.ssl.messages.handshake.*;
 import crypt.ssl.utils.Assert;
+import crypt.ssl.utils.CertificateDecoder;
 import crypt.ssl.utils.Dumper;
 import crypt.ssl.utils.IO;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -67,7 +71,7 @@ public abstract class TlsDecoder {
         return new ChangeCipherSpec(type);
     }
 
-    public static HandshakeMessage readHandshake(ByteBuffer handshakeBuffer) {
+    public static HandshakeMessage readHandshake(ByteBuffer handshakeBuffer) throws IOException {
         HandshakeType type = IO.readEnum(handshakeBuffer, HandshakeType.class);
         int length = IO.readInt24(handshakeBuffer);
 
@@ -76,7 +80,7 @@ public abstract class TlsDecoder {
         return readHandshakeOfType(type, handshakeBuffer);
     }
 
-    public static HandshakeMessage readHandshakeOfType(HandshakeType type, ByteBuffer handshakeBuffer) {
+    public static HandshakeMessage readHandshakeOfType(HandshakeType type, ByteBuffer handshakeBuffer) throws IOException {
         switch (type) {
             case SERVER_HELLO:
                 return readServerHello(handshakeBuffer);
@@ -112,21 +116,31 @@ public abstract class TlsDecoder {
         );
     }
 
-    private static CertificateMessage readCertificate(ByteBuffer source) {
+    private static CertificateMessage readCertificate(ByteBuffer source) throws IOException {
 
         int certificatesLength = IO.readInt24(source);
-        List<ASN1Certificate> certificates = new ArrayList<>();
+        List<X509Certificate> certificates = new ArrayList<>();
 
         while (certificatesLength > 0) {
-            ASN1Certificate certificate = readAsn1Certificate(source);
+            int certificateLength = IO.readInt24(source);
+            byte[] certificateContent = IO.readBytes(source, certificateLength);
 
-            certificates.add(certificate);
+            certificates.add(decodeCertificate(certificateContent));
 
             // subtract 3 bytes for certificate length and the length of the certificate itself
-            certificatesLength = certificatesLength - 3 - certificate.getContent().length;
+            certificatesLength = certificatesLength - 3 - certificateLength;
         }
 
         return new CertificateMessage(certificates);
+    }
+
+    // Used as a wrapper over CertificateDecoder for the exception translation purpose
+    private static X509Certificate decodeCertificate(byte[] certBody) throws IOException {
+        try {
+            return CertificateDecoder.decodeCertificate(certBody);
+        } catch (CertificateException e) {
+            throw TlsExceptions.decodeError();
+        }
     }
 
     private static RandomValue readRandomValue(ByteBuffer source) {
@@ -166,14 +180,6 @@ public abstract class TlsDecoder {
         }
 
         return builder.build();
-    }
-
-    private static ASN1Certificate readAsn1Certificate(ByteBuffer source) {
-        //certificate length cannot be 0
-        int certificateLength = IO.readInt24(source);
-        byte[] certificateContent = IO.readBytes(source, certificateLength);
-
-        return new ASN1Certificate(certificateContent);
     }
 
     private static Finished readFinished(ByteBuffer source) {
