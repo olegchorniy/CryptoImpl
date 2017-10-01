@@ -1,4 +1,4 @@
-package crypt.ssl;
+package crypt.ssl.testing;
 
 import crypt.ssl.connection.Session;
 import crypt.ssl.connection.TlsConfigurer;
@@ -53,7 +53,7 @@ public class SslTest {
         int port = config.port;
 
         TlsConfigurer configurer = TlsConfigurer.builder()
-                .suite(CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA)
+                .suite(crypt.ssl.CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA)
                 .validateCertificates(false)
                 .build();
 
@@ -96,7 +96,7 @@ public class SslTest {
                 @Override
                 public int[] getCipherSuites() {
                     return new int[]{
-                            CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA.getValue()
+                            crypt.ssl.CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA.getValue()
                     };
                 }
 

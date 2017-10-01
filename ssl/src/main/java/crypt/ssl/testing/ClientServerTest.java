@@ -1,7 +1,5 @@
 package crypt.ssl.testing;
 
-import crypt.ssl.SslTest;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;

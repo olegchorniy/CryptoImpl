@@ -1,5 +1,5 @@
  +  0. DH parameters signature verification
-    1. Certificate verification procedure
+ +  1. Certificate verification procedure
  +  2. Session resuming (abbreviated handshake)
  +  3. RSA key exchange scheme
 (?) 4. AES GCM mode

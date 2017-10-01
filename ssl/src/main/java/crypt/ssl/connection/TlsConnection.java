@@ -202,10 +202,9 @@ public class TlsConnection implements Connection {
     }
 
     private void handleMessage(RawMessage message) throws IOException {
-        System.out.println("Connection state = " + this.state);
-        System.out.println("Handshake state = " + this.handshakeState);
         System.out.println("ContentType = " + message.getContentType());
         System.out.println("Message length = " + message.getMessageBody().remaining());
+        System.out.println();
         //System.out.println("Message = " + message.toString());
 
         ByteBuffer body = message.getMessageBody();
@@ -237,7 +236,6 @@ public class TlsConnection implements Connection {
         }
 
         // Ensure that the hole message has been consumed
-        // TODO: why we sometimes get into the if block with 01 00 dump (corresponds to close_notify alert) (try with habr in debug).
         if (body.hasRemaining()) {
             System.err.println("Message wasn't consumed");
             System.err.println(message.getContentType());
