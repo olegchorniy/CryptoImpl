@@ -87,7 +87,7 @@ public abstract class TlsDecoder {
             case CERTIFICATE:
                 return readCertificate(handshakeBuffer);
             case SERVER_KEY_EXCHANGE:
-                return new ServerKeyExchange(handshakeBuffer);
+                return readServerKeyExchange(handshakeBuffer);
             case SERVER_HELLO_DONE:
                 return ServerHelloDone.INSTANCE;
             case FINISHED:
@@ -180,6 +180,11 @@ public abstract class TlsDecoder {
         }
 
         return builder.build();
+    }
+
+    private static ServerKeyExchange readServerKeyExchange(ByteBuffer source) {
+        // Reading to byte array and conversion back to ByteBuffer necessary to prevent sharing of a ByteBuffer object.
+        return new ServerKeyExchange(ByteBuffer.wrap(readAllBytes(source)));
     }
 
     private static Finished readFinished(ByteBuffer source) {

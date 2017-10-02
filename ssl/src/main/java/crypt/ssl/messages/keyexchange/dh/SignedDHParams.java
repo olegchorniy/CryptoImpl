@@ -17,9 +17,13 @@ public class SignedDHParams {
     @Override
     public String toString() {
         return "SignedDHParams(" +
-                "serverDHParams=" + serverDHParams +
-                ", signatureAndHashAlgorithm=" + signatureAndHashAlgorithm +
-                ", signature=" + Hex.toHex(signature) +
-                ')';
+                "\n\tserverDHParams(" +
+                "\n\t\tP: " + serverDHParams.getP().toString(16) +
+                ",\n\t\tG: " + serverDHParams.getG().toString(16) +
+                ",\n\t\tYs: " + serverDHParams.getYs().toString(16) +
+                "\n\t)" +
+                ",\n\tsignatureAndHashAlgorithm: " + signatureAndHashAlgorithm +
+                ",\n\tsignature: " + Hex.toHex(signature) +
+                "\n)";
     }
 }

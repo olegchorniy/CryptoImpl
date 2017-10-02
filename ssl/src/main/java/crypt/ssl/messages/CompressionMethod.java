@@ -1,5 +1,6 @@
 package crypt.ssl.messages;
 
+import crypt.ssl.utils.TlsEnumUtils;
 import lombok.Getter;
 
 @Getter
@@ -12,5 +13,10 @@ public enum CompressionMethod implements TlsEnum {
 
     CompressionMethod(int value) {
         this.value = value;
+    }
+
+    @Override
+    public String toString() {
+        return TlsEnumUtils.toString(this);
     }
 }

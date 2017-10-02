@@ -1,5 +1,6 @@
 package crypt.ssl.messages.handshake;
 
+import crypt.ssl.utils.Hex;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,5 +17,10 @@ public class Finished extends HandshakeMessage {
     public Finished(byte[] verifyData) {
         super(HandshakeType.FINISHED);
         this.verifyData = verifyData;
+    }
+
+    @Override
+    public String toString() {
+        return "Finished(" + Hex.toHex(verifyData) + ')';
     }
 }

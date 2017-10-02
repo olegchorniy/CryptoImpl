@@ -1,5 +1,6 @@
 package crypt.ssl.messages;
 
+import crypt.ssl.utils.TlsEnumUtils;
 import lombok.Getter;
 
 @Getter
@@ -20,5 +21,10 @@ public enum ProtocolVersion implements TlsEnum {
         this.major = major;
         this.minor = minor;
         this.value = (major << 8) | minor;
+    }
+
+    @Override
+    public String toString() {
+        return TlsEnumUtils.toString(this);
     }
 }

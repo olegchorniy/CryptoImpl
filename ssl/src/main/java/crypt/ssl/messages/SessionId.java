@@ -18,6 +18,6 @@ public class SessionId {
 
     @Override
     public String toString() {
-        return "SessionId(" + Hex.toHex(value) + ')';
+        return Hex.toHex(value);
     }
 }

@@ -49,6 +49,9 @@ public class DHEKeyExchange implements KeyExchange {
         ByteBuffer data = serverKeyExchange.getData();
         SignedDHParams signedDHParams = KeyExchangeDecoder.readDHKEParams(data);
 
+        System.out.println(signedDHParams);
+        System.out.println();
+
         checkSignature(signedDHParams);
 
         this.serverDHParams = signedDHParams.getServerDHParams();
@@ -91,6 +94,9 @@ public class DHEKeyExchange implements KeyExchange {
             //Perform several format transformations and return client public key to be sent to the server
             DHPublicKeySpec clientPublicKeySpec = toKeySpec(clientKeyPair.getPublic());
             ClientDHPublic clientDHPublic = new ClientDHPublic(clientPublicKeySpec.getY());
+
+            System.out.println(clientDHPublic);
+            System.out.println();
 
             return Encoder.writeToArray(clientDHPublic, KeyExchangeEncoder::writeClientDH);
         } catch (GeneralSecurityException e) {

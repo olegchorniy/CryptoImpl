@@ -6,6 +6,7 @@ import crypt.ssl.digest.HashAlgorithm;
 import crypt.ssl.keyexchange.KeyExchangeType;
 import crypt.ssl.messages.Size;
 import crypt.ssl.messages.TlsEnum;
+import crypt.ssl.utils.TlsEnumUtils;
 import lombok.Getter;
 
 @Getter
@@ -103,5 +104,10 @@ public enum CipherSuite implements TlsEnum {
     //TODO: define properly for AEAD ciphers
     public int getFixedIvSize() {
         return 0;
+    }
+
+    @Override
+    public String toString() {
+        return TlsEnumUtils.toString(this);
     }
 }

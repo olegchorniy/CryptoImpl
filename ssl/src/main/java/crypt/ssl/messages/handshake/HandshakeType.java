@@ -2,6 +2,7 @@ package crypt.ssl.messages.handshake;
 
 import crypt.ssl.messages.Size;
 import crypt.ssl.messages.TlsEnum;
+import crypt.ssl.utils.TlsEnumUtils;
 import lombok.Getter;
 
 @Getter
@@ -28,4 +29,9 @@ public enum HandshakeType implements TlsEnum {
     }
 
     //@formatter:on
+
+    @Override
+    public String toString() {
+        return TlsEnumUtils.toString(this);
+    }
 }

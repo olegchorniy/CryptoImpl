@@ -4,9 +4,11 @@ import crypt.ssl.utils.Hex;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.stream.Collectors;
 
-public class Extensions {
+public class Extensions implements Iterable<Extension> {
 
     static final Extensions EMPTY = new Extensions(Collections.emptyMap());
 
@@ -20,9 +22,29 @@ public class Extensions {
         return table.get(type);
     }
 
+    public int size() {
+        return this.table.size();
+    }
+
+    public boolean isEmpty() {
+        return this.table.isEmpty();
+    }
+
+    @Override
+    public Iterator<Extension> iterator() {
+        return this.table.entrySet()
+                .stream()
+                .map(extension -> new Extension(extension.getKey(), extension.getValue()))
+                .collect(Collectors.toList())
+                .iterator();
+    }
+
     @Override
     public String toString() {
-        return table.toString();
+        return table.entrySet()
+                .stream()
+                .map(e -> Hex.toHex16(e.getKey()) + " : " + Hex.toHex(e.getValue()))
+                .collect(Collectors.joining(",", "[", "]"));
     }
 
     public static Extensions empty() {

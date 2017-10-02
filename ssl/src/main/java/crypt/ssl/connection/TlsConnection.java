@@ -109,6 +109,8 @@ public class TlsConnection implements Connection {
         if (configurer.isValidateCertificates()) {
             this.certValidator = new CertificateValidator();
         }
+
+        this.parameters.setClientRandom(configurer.getClientRandom());
     }
 
     private List<CipherSuite> defaultSuitesIfEmpty(List<CipherSuite> suites) {
@@ -159,7 +161,7 @@ public class TlsConnection implements Connection {
 
     private void sendClientHello() throws IOException {
         SessionId sessionId = this.fullHandshake ? SessionId.EMPTY : this.session.getSessionId();
-        RandomValue randomValue = generateRandom();
+        RandomValue randomValue = getClientRandom();
 
         ClientHello clientHello = ClientHello.builder()
                 .clientVersion(this.version)
@@ -170,16 +172,19 @@ public class TlsConnection implements Connection {
                 .extensions(Extensions.empty())
                 .build();
 
-        this.parameters.setClientRandom(randomValue);
-
         sendHandshakeMessage(clientHello);
     }
 
-    private RandomValue generateRandom() {
-        return RandomValue.builder()
-                .gmtUnitTime(random.nextInt())
-                .randomBytes(RandomUtils.getBytes(random, 28))
-                .build();
+    private RandomValue getClientRandom() {
+        RandomValue clientRandom = this.parameters.getClientRandom();
+        if (clientRandom != null) {
+            return clientRandom;
+        }
+
+        clientRandom = RandomValue.create(this.random);
+        this.parameters.setClientRandom(clientRandom);
+
+        return clientRandom;
     }
 
     private void readAndHandleMessage() throws IOException {
@@ -202,10 +207,9 @@ public class TlsConnection implements Connection {
     }
 
     private void handleMessage(RawMessage message) throws IOException {
-        System.out.println("ContentType = " + message.getContentType());
-        System.out.println("Message length = " + message.getMessageBody().remaining());
-        System.out.println();
-        //System.out.println("Message = " + message.toString());
+        System.out.println("ContentType: " + message.getContentType());
+        System.out.println("Length: " + message.getMessageBody().remaining());
+        System.out.print(message.getContentType() == ContentType.HANDSHAKE ? "" : "\n");
 
         ByteBuffer body = message.getMessageBody();
 
@@ -217,6 +221,9 @@ public class TlsConnection implements Connection {
                 if (handshake.getType() != HandshakeType.FINISHED) {
                     saveHandshakeMessage(handshakeBytes);
                 }
+
+                System.out.println(handshake);
+                System.out.println();
 
                 handleHandshakeMessage(handshake);
 
@@ -392,6 +399,7 @@ public class TlsConnection implements Connection {
 
         System.out.println("PreMasterSecret:");
         Dumper.dumpToStdout(preMasterSecret);
+        System.out.println();
 
         byte[] masterSecret = calculateMasterSecret(preMasterSecret);
 
@@ -409,6 +417,7 @@ public class TlsConnection implements Connection {
 
         System.out.println("MasterSecret:");
         Dumper.dumpToStdout(masterSecret);
+        System.out.println();
 
         byte[] keyMaterial = generateKeyMaterial(masterSecret, (macSize + encryptionKeySize + fixedIvSize) * 2);
         ByteBuffer keysBuffer = ByteBuffer.wrap(keyMaterial);
@@ -424,7 +433,9 @@ public class TlsConnection implements Connection {
         KeyParameters serverKeyParams = new KeyParameters(serverMacKey, serverEncKey, serverIv);
 
         System.out.println("clientKeyParams = " + clientKeyParams);
+        System.out.println();
         System.out.println("serverKeyParams = " + serverKeyParams);
+        System.out.println();
 
         this.parameters.setMasterSecret(masterSecret);
         this.parameters.setClientKeyParameters(clientKeyParams);
@@ -468,14 +479,16 @@ public class TlsConnection implements Connection {
 
     private void sendFinished() throws IOException {
         byte[] verifyData = computeVerifyData("client finished");
-        System.out.println("Client's verifyData = " + Hex.toHex(verifyData));
+        System.out.println("Client's verify data = " + Hex.toHex(verifyData));
+        System.out.println();
 
         sendHandshakeMessage(new Finished(verifyData));
     }
 
     private void verifyFinished(Finished finished) throws IOException {
         byte[] serverVerifyData = computeVerifyData("server finished");
-        System.out.println("Server's verifyData = " + Hex.toHex(serverVerifyData));
+        System.out.println("Server's verify data = " + Hex.toHex(serverVerifyData));
+        System.out.println();
 
         if (!Arrays.equals(serverVerifyData, finished.getVerifyData())) {
             throw TlsExceptions.decryptError();
@@ -563,6 +576,10 @@ public class TlsConnection implements Connection {
      */
 
     private void sendHandshakeMessage(HandshakeMessage handshakeMessage) throws IOException {
+        System.out.println("ContentType: " + ContentType.HANDSHAKE);
+        System.out.println(handshakeMessage);
+        System.out.println();
+
         sendMessage(handshakeMessage, TlsEncoder::writeHandshake);
     }
 

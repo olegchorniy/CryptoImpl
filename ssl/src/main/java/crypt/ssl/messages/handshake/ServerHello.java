@@ -4,11 +4,9 @@ import crypt.ssl.CipherSuite;
 import crypt.ssl.messages.*;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.ToString;
 
 @Getter
 @Setter
-@ToString
 public class ServerHello extends HandshakeMessage {
 
     private ProtocolVersion serverVersion;
@@ -37,5 +35,17 @@ public class ServerHello extends HandshakeMessage {
         this.cipherSuite = cipherSuite;
         this.compressionMethod = compressionMethod;
         this.extensions = extensions;
+    }
+
+    @Override
+    public String toString() {
+        return "ServerHello(" +
+                "\n\tserverVersion: " + serverVersion +
+                ",\n\trandom: " + random +
+                ",\n\tsessionId: " + sessionId +
+                ",\n\tcipherSuite: " + cipherSuite +
+                ",\n\tcompressionMethod: " + compressionMethod +
+                ",\n\textensions: " + extensions +
+                "\n)";
     }
 }

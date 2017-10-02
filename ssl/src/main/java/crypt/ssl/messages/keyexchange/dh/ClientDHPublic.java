@@ -10,4 +10,11 @@ import java.math.BigInteger;
 public class ClientDHPublic {
 
     private BigInteger Yc;
+
+    @Override
+    public String toString() {
+        return "ClientDHPublic(" +
+                "\n\tYc: " + Yc.toString(16) +
+                "\n)";
+    }
 }

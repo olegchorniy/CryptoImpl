@@ -45,4 +45,16 @@ public class ClientHello extends HandshakeMessage {
         this.compressionMethods = compressionMethods;
         this.extensions = extensions;
     }
+
+    @Override
+    public String toString() {
+        return "ClientHello(" +
+                "\n\tclientVersion: " + clientVersion +
+                ",\n\trandom: " + random +
+                ",\n\tsessionId: " + sessionId +
+                ",\n\tcipherSuites: " + cipherSuites +
+                ",\n\tcompressionMethods: " + compressionMethods +
+                ",\n\textensions: " + extensions +
+                "\n)";
+    }
 }

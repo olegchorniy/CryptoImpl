@@ -1,5 +1,6 @@
 package crypt.ssl.messages;
 
+import crypt.ssl.utils.TlsEnumUtils;
 import lombok.Getter;
 
 @Getter
@@ -20,4 +21,9 @@ public enum ContentType implements TlsEnum {
     }
 
     //@formatter:on
+
+    @Override
+    public String toString() {
+        return TlsEnumUtils.toString(this);
+    }
 }

@@ -59,7 +59,7 @@ public class DigitalSignatureTest {
 
 
     private static void update(Signature signature, RandomValue randomValue) throws SignatureException {
-        signature.update(Bits.toBytes32(randomValue.getGmtUnitTime()));
+        signature.update(Bits.toBytes32(randomValue.getGmtUnixTime()));
         signature.update(randomValue.getRandomBytes());
     }
 

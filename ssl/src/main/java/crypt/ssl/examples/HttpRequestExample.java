@@ -1,5 +1,6 @@
 package crypt.ssl.examples;
 
+import crypt.ssl.CipherSuite;
 import crypt.ssl.connection.TlsConfigurer;
 import crypt.ssl.connection.TlsConnection;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -23,14 +24,15 @@ public class HttpRequestExample {
     }
 
     public static void main(String[] args) throws Exception {
-        simpleHttpRequest("localhost", "/test", 8090);
         simpleHttpRequest("habrahabr.ru", "/top/", 443);
+        simpleHttpRequest("localhost", "/test", 8090);
     }
 
     public static void simpleHttpRequest(String host, String path, int port) throws IOException {
 
         TlsConfigurer configurer = TlsConfigurer.builder()
                 .validateCertificates(false)
+                .suite(CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA)
                 .build();
 
         try (TlsConnection connection = new TlsConnection(configurer)) {
@@ -49,6 +51,7 @@ public class HttpRequestExample {
     }
 
     private static void readResponse(InputStream in) throws IOException {
+        // Just read characters from the input stream until connection is closed from the other side.
         try (Reader reader = new InputStreamReader(in)) {
             while (true) {
                 int _char = reader.read();

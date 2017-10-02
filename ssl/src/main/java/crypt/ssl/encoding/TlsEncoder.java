@@ -82,10 +82,25 @@ public abstract class TlsEncoder {
         List<CompressionMethod> compressionMethods = clientHello.getCompressionMethods();
         IO.writeInt8(out, compressionMethods.size() /* each compression method takes 1 byte */);
         IO.writeEnumConstants(out, compressionMethods);
+
+        Extensions extensions = clientHello.getExtensions();
+        if (extensions.isEmpty()) {
+            return;
+        }
+
+        byte[] encodedExtensions = Encoder.writeToArray(extensions, TlsEncoder::writeExtensions);
+        IO.writeOpaque16(out, encodedExtensions);
+    }
+
+    private static void writeExtensions(OutputStream out, Extensions extensions) throws IOException {
+        for (Extension extension : extensions) {
+            IO.writeInt16(out, extension.getExtensionType());
+            IO.writeOpaque16(out, extension.getData());
+        }
     }
 
     public static void writeRandom(OutputStream out, RandomValue random) throws IOException {
-        IO.writeInt32(out, random.getGmtUnitTime());
+        IO.writeInt32(out, random.getGmtUnixTime());
         IO.writeBytes(out, random.getRandomBytes());
     }
 

@@ -8,6 +8,13 @@ public abstract class TlsEnumUtils {
     private TlsEnumUtils() {
     }
 
+    public static <E extends Enum<E> & TlsEnum> String toString(E constant) {
+        int length = 2 * getSize(constant.getDeclaringClass());
+        String hexValue = Hex.toHex(constant.getValue(), length);
+
+        return constant.name() + " (" + hexValue + ")";
+    }
+
     public static <E extends Enum<E> & TlsEnum> E getEnumConstant(Class<E> enumClass, int value) {
 
         for (E e : enumClass.getEnumConstants()) {
