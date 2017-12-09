@@ -10,8 +10,10 @@
     <version>1.0-SNAPSHOT</version>
 
     <modules>
-        <module>common</module>
         <module>ssl</module>
+        <module>payments-tools</module>
+        <module>payments-common</module>
+        <module>payments-broker</module>
     </modules>
 
     <properties>

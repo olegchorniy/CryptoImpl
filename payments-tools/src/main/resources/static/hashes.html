@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hashes</title>
+
+    <script src="/jQuery/jquery-2.2.3.min.js"></script>
+    <!--<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>-->
+
+    <style>
+        #hashes tr td:last-child {
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+<div>
+    <table id="hashes">
+        <tr>
+            <td>Algorithm:</td>
+            <td>
+                <select name="alg">
+                    <option value="custom">Custom</option>
+                </select>
+            </td>
+        </tr>
+
+        <tr id="custom-alg-wrapper" style="display: none">
+            <td> Custom algorithm:</td>
+            <td>
+                <input placeholder="Custom algorithm" type="text" name="custom-alg" size="75">
+            </td>
+        </tr>
+
+        <tr>
+            <td> Data to be hashed:</td>
+            <td>
+                <input placeholder="Data" type="text" name="data" size="75">
+            </td>
+        </tr>
+
+        <tr>
+            <td><b>Result:</b></td>
+            <td id="hash"></td>
+        </tr>
+    </table>
+
+    <p>
+        <button id="hash-button">Hash</button>
+    </p>
+</div>
+
+<script type="application/javascript">
+    $(function () {
+        var $data = $('[name=data]');
+        var $hash = $('#hash');
+        var $algSelect = $('[name=alg]');
+        var $customAlg = $('[name=custom-alg]');
+        var $customWrapper = $('#custom-alg-wrapper');
+        var algorithms = ['MD5', 'SHA-1', 'SHA-256', 'SHA3-256'];
+
+        $.each(algorithms.reverse(), function (_, alg) {
+            $algSelect.prepend($('<option value="' + alg + '">' + alg + '</option>'));
+        });
+
+        $algSelect.val(algorithms[algorithms.length - 1]);
+
+        $algSelect.on('change', function () {
+            if ($algSelect.val() === 'custom') {
+                $customWrapper.show();
+            } else {
+                $customWrapper.hide();
+            }
+        });
+
+        $('#hash-button').on('click', calculateHash);
+
+        $('input[type=text]').on('keyup', function (e) {
+            if (e.keyCode === 13) {
+                calculateHash();
+            }
+        });
+
+        function calculateHash() {
+            $hash.css('color', 'black');
+
+            var data = $data.val();
+            var algorithm = $algSelect.val();
+
+            if (algorithm === 'custom') {
+                algorithm = $customAlg.val();
+            }
+
+            $.post('/api/hash', {
+                data: data,
+                alg: algorithm
+            }).done(function (response) {
+                $hash.text(response);
+            }).fail(function (jqXHR) {
+                if (jqXHR.responseJSON && jqXHR.responseJSON.message) {
+                    $hash.text(jqXHR.responseJSON.message);
+                    $hash.css('color', 'red');
+                } else {
+                    $hash.text('');
+                    alert('Error');
+                }
+            });
+        }
+    });
+</script>
+</body>
+</html>
