@@ -36,7 +36,7 @@
         </dependency>
 
         <dependency>
-            <groupId>crypt.payments</groupId>
+            <groupId>labs.crypto.impl</groupId>
             <artifactId>payments-common</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>

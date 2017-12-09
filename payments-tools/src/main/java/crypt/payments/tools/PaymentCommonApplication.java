@@ -1,4 +1,4 @@
-package crypt.payments.common;
+package crypt.payments.tools;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.boot.SpringApplication;

@@ -1,4 +1,4 @@
-package crypt.impl.common;
+package crypt.payments.common;
 
 import lombok.SneakyThrows;
 

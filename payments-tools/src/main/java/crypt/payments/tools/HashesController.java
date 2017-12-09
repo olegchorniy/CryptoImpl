@@ -1,7 +1,7 @@
-package crypt.payments.common;
+package crypt.payments.tools;
 
-import crypt.impl.common.HashUtils;
-import crypt.impl.common.HexUtils;
+import crypt.payments.common.HashUtils;
+import crypt.payments.common.HexUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
