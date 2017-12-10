@@ -3,8 +3,6 @@ package crypt.payments.utils;
 import lombok.SneakyThrows;
 
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 
 public abstract class HashUtils {
 
@@ -15,7 +13,11 @@ public abstract class HashUtils {
         return getDigest(algorithm).digest(data);
     }
 
-    @SneakyThrows({NoSuchAlgorithmException.class, NoSuchProviderException.class})
+    public static int hashLength(String algorithm) {
+        return getDigest(algorithm).getDigestLength();
+    }
+
+    @SneakyThrows
     private static MessageDigest getDigest(String algorithm) {
         return MessageDigest.getInstance(algorithm, "BC");
     }

@@ -16,6 +16,15 @@ public class Certificate implements SignedData {
 
     private byte[] signature;
 
+    public Certificate() {
+    }
+
+    public Certificate(String subjectName, LocalDateTime expirationDate, RSAPublicKey publicKey) {
+        this.subjectName = subjectName;
+        this.expirationDate = expirationDate;
+        this.publicKey = publicKey;
+    }
+
     @Override
     public byte[] encode() {
         return new Encoder()

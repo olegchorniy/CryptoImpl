@@ -1,10 +1,13 @@
 package crypt.payments.certificates;
 
 import crypt.payments.signatures.encoding.Encoder;
+import crypt.payments.signatures.rsa.RSAPublicKey;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -13,6 +16,11 @@ import lombok.ToString;
 public class UserCertificate extends Certificate {
 
     private String broker;
+
+    public UserCertificate(String broker, String userName, LocalDateTime expirationDate, RSAPublicKey publicKey) {
+        super(userName, expirationDate, publicKey);
+        this.broker = broker;
+    }
 
     @Override
     public byte[] encode() {

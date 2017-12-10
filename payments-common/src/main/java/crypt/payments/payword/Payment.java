@@ -6,5 +6,5 @@ import lombok.Data;
 public class Payment {
 
     private int index;
-    private byte[] coin;
+    private byte[] payword;
 }
