@@ -2,10 +2,7 @@ package crypt.payments.certificates;
 
 import crypt.payments.signatures.encoding.Encoder;
 import crypt.payments.signatures.rsa.RSAPublicKey;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -13,6 +10,7 @@ import java.time.LocalDateTime;
 @Setter
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true)
+@NoArgsConstructor
 public class UserCertificate extends Certificate {
 
     private String broker;

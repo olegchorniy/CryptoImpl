@@ -30,22 +30,28 @@ public class BrokerConfiguration {
     private static final String BROKER_NAME = "Lab_N3_Broker";
 
     @Bean
-    @SneakyThrows
     public Broker broker() {
         Resource crtResource = new ClassPathResource("brokerCertificate.json");
         Resource privateKeyResource = new ClassPathResource("brokerPrivateKey.json");
 
-        if (!crtResource.exists() || !privateKeyResource.exists()) {
-            logger.info("Creating new broker");
+        Broker broker;
 
-            return newBroker();
+        if (crtResource.exists() && privateKeyResource.exists()) {
+            broker = deserializeBroker(crtResource, privateKeyResource);
+            logger.info("Broker deserialized, certificate = {}", broker.getCertificate());
+        } else {
+            broker = newBroker();
+            logger.info("New broker created, certificate = {}", broker.getCertificate());
         }
 
-        logger.info("Deserializing broker");
+        return broker;
+    }
 
+    @SneakyThrows
+    private Broker deserializeBroker(Resource certificateResource, Resource privateKeyResource) {
         Gson gson = GsonFactory.createGson();
 
-        Certificate certificate = deserialize(gson, crtResource, Certificate.class);
+        Certificate certificate = deserialize(gson, certificateResource, Certificate.class);
         RSAPrivateKey privateKey = deserialize(gson, privateKeyResource, RSAPrivateKey.class);
 
         return new Broker(certificate, privateKey);

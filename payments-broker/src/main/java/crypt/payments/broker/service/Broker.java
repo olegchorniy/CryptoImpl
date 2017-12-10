@@ -63,4 +63,8 @@ public class Broker {
                 .sorted(Comparator.comparing(User::getRegistrationDate).reversed())
                 .collect(Collectors.toList());
     }
+
+    public Certificate getCertificate() {
+        return certificate;
+    }
 }

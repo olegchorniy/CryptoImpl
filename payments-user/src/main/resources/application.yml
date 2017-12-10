@@ -1,0 +1,13 @@
+server:
+  port: 0
+  # address:
+
+spring:
+  http:
+    converters:
+      preferred-json-mapper: "gson"
+
+payments:
+  user-name: User_N1
+  user-address:
+  broker-address: localhost:8080
