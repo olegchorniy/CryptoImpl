@@ -1,0 +1,75 @@
+* {
+    font-family: sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+    padding: 5px 0;
+}
+
+td, th {
+    padding: 0 15px;
+    text-align: center;
+}
+
+.block {
+    border: 1px solid;
+    margin: 0 10% 30px 10%;
+    padding: 5px;
+}
+
+.header {
+    text-align: center;
+}
+
+.title {
+    border-bottom: 1px solid #7f8696;
+}
+
+.body {
+    padding: 10px 20px;
+}
+
+.summary tr td:first-child {
+    font-weight: bold;
+    padding: 0;
+}
+
+.vendors {
+    width: 50%;
+}
+
+.vendors tbody tr:hover {
+    background: gray;
+    cursor: pointer;
+}
+
+/* -------------------------- Payments section ------------------------- */
+
+.payments h4 {
+    text-align: center;
+}
+
+.column {
+    float: left;
+    padding: 0 10px;
+    min-width: 25%;
+}
+
+.coins {
+    min-width: 200px;
+    border: 1px solid;
+    margin: 0;
+    padding: 5px;
+    list-style: none;
+}
+
+.coins li {
+    font-family: monospace;
+    text-align: center;
+    padding: 0 30px;
+}
+
+.spent {
+    background: gray;
+}

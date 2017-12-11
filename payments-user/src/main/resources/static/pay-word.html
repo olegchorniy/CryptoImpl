@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FI-Cash</title>
+
+    <link rel="stylesheet" href="pay-word.css"/>
+
+    <script
+            src="https://code.jquery.com/jquery-3.2.1.js"
+            integrity="sha256-DZAnKJ/6XZ9si04Hgrsxu/8s717jcIzLy3oi35EouyE="
+            crossorigin="anonymous"></script>
+
+    <script>
+
+        function tagEnclose(tag, value) {
+            return '<' + tag + '>' + value + '</' + tag + '>';
+        }
+
+        var renderCell = tagEnclose.bind(null, "td");
+        var renderHeader = tagEnclose.bind(null, "th");
+        var renderRow = tagEnclose.bind(null, "tr");
+
+        function renderTable(selector, columns, data) {
+            var $table = $(selector);
+
+            /* Table header */
+
+            var header = renderRow(columns.map(renderHeader));
+
+            /* Table body */
+
+            var rows = data.map(function (cells) {
+                return cells.map(renderCell).join('');
+            });
+
+            var body = rows.map(renderRow).join('');
+
+            /* Combine them all together */
+
+            $table.append($('<thead>').html(header));
+            $table.append($('<tbody>').html(body));
+        }
+    </script>
+</head>
+<body>
+
+<div class="header block">
+    <h1>FI-Cash</h1>
+</div>
+
+<div class="block">
+    <h3 class="title">Broker: <a href="http://192.168.10.1:8080/">Local Broker (192.168.10.1:8080)</a></h3>
+
+    <div class="body">
+        <button>Register</button>
+    </div>
+
+    <div class="body">
+        <table class="summary">
+            <tbody>
+            <tr>
+                <td>Money</td>
+                <td>100</td>
+            </tr>
+            <tr>
+                <td>Expiration date</td>
+                <td>12:50 10.12.2017</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="block">
+    <h3 class="title">Vendors</h3>
+    <div class="body">
+        <table class="vendors">
+        </table>
+
+        <script>
+            renderTable(
+                '.vendors',
+                ['Name', 'Address'],
+                [
+                    ['Book shop', '192.168.10.3:1995']
+                ]
+            );
+        </script>
+    </div>
+</div>
+
+<div class="block">
+    <h3 class="title">Payments <span style="font-weight: normal;">(Book shop - 192.168.10.3:1995)</span></h3>
+
+    <div class="body payments">
+        <div>
+            <p>
+                <button>Send commitment</button>
+            </p>
+            <table class="summary">
+                <tbody>
+                <tr>
+                    <td>Session ID</td>
+                    <td>a3aa9665-ed74-4e54-85cb-387a484bf27f</td>
+                </tr>
+                <tr>
+                    <td>Transferred funds</td>
+                    <td>90</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 20px">
+            <div class="column">
+                <h4>Coins</h4>
+                <ul class="coins">
+                    <li class="spent">896d3071</li>
+                    <li>4f0d33e2</li>
+                    <li>be3ba4d3</li>
+                </ul>
+            </div>
+
+            <div class="column">
+                <h4>Transfer funds</h4>
+                <input placeholder="Amount">
+                <button>Transfer</button>
+            </div>
+        </div>
+
+        <div style="clear: both"></div>
+    </div>
+</div>
+
+<div class="block">
+    <h3 class="title">Incoming payments</h3>
+
+    <div class="body">
+        <table class="incoming">
+            <thead>
+            <tr>
+                <th>User</th>
+                <th>Session ID</th>
+                <th>Amount</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td>Client 1 - 192.168.10.2:8080</td>
+                <td>a3aa9665-ed74-4e54-85cb-387a484bf27f</td>
+                <td>88</td>
+                <td>
+                    <button>Charge</button>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="body">
+        <table class="test"></table>
+    </div>
+</div>
+</body>
+</html>
