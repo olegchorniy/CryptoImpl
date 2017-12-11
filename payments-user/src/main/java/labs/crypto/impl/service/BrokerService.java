@@ -10,6 +10,7 @@ import crypt.payments.registration.User;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
+import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Service
 public class BrokerService {
 
     private static final ParameterizedTypeReference<List<User>> users = new ParameterizedTypeReference<List<User>>() {
@@ -29,6 +31,11 @@ public class BrokerService {
 
     public BrokerService(RestTemplate rest) {
         this.rest = rest;
+    }
+
+
+    public String getBrokerAddress() {
+        return this.brokerAddress;
     }
 
     public Certificate getBrokerCertificate() {

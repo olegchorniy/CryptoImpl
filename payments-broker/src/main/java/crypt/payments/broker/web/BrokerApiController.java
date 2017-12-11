@@ -6,6 +6,8 @@ import crypt.payments.payword.RedeemRequest;
 import crypt.payments.registration.RegistrationRequest;
 import crypt.payments.registration.RegistrationResponse;
 import crypt.payments.registration.User;
+import crypt.payments.rest.Response;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -52,5 +54,12 @@ public class BrokerApiController {
     @RequestMapping(path = "/redeem", method = POST)
     public void redeem(@RequestBody RedeemRequest request) {
         this.broker.redeem(request.getCommitment(), request.getPayment());
+    }
+
+    /* ------------------ Hidden API ------------------- */
+    @GetMapping("/delete")
+    public Response deleteUsers() {
+        int deleted = this.broker.deleteUsers();
+        return new Response().add("deleted", deleted);
     }
 }

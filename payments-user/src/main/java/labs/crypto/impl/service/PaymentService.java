@@ -1,13 +1,13 @@
 package labs.crypto.impl.service;
 
 import crypt.payments.exceptions.InvalidPaymentException;
+import crypt.payments.exceptions.UserNotFoundException;
 import crypt.payments.payword.Commitment;
 import crypt.payments.payword.Payment;
 import crypt.payments.payword.PaywordUtilities;
 import crypt.payments.registration.User;
 import labs.crypto.impl.events.UserRegistrationEvent;
 import labs.crypto.impl.exceptions.SessionNotFoundException;
-import labs.crypto.impl.exceptions.UserNotFoundException;
 import labs.crypto.impl.model.IncomingSession;
 import labs.crypto.impl.model.OutgoingSession;
 import labs.crypto.impl.model.rest.StartSessionResponse;
@@ -18,10 +18,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDateTime;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -51,20 +48,44 @@ public class PaymentService {
         this.balance.set(((User) event.getSource()).getBalance());
     }
 
+    /* ------------------- Getters --------------------- */
+
+    public Collection<IncomingSession> getIncomingSessions() {
+        return incomingSessions.values();
+    }
+
+    public OutgoingSession getOutgoingSessionById(UUID sessionId) {
+        return this.outgoingSessions.get(sessionId);
+    }
+
+    public OutgoingSession getOutgoingSessionByRecipient(UUID recipientId) {
+        return outgoingSessions.values()
+                .stream()
+                .filter(session -> session.getRecipient().getCertificate().getUserId().equals(recipientId))
+                .findFirst()
+                .orElse(null);
+    }
+
+    public int getBalance() {
+        return this.balance.get();
+    }
+
     /* --------------- Session managements methods ---------------- */
 
-    public void startOutgoingSession(UUID receiverId, int chainLength) {
+    public UUID startOutgoingSession(UUID recipientId, int chainLength) {
         this.userService.checkUserInitialized();
 
-        User recipient = findOrThrowException(receiverId);
+        User recipient = findOrThrowException(recipientId);
         chainLength = Math.min(chainLength, this.balance.get());
+
+        findBy(this.outgoingSessions, this::getUserId, recipientId).ifPresent(this::doFinishOutgoingSession);
 
         // Generate paywords and commitment
         byte[][] paywords = PaywordUtilities.createPaywordChain(PaywordUtilities.PAYWORD_HASH, chainLength);
         Commitment commitment = createCommitment(recipient, paywords);
 
         // Send commitment to the remote user
-        String url = buildUrlToUser(recipient, "/api/startSession");
+        String url = buildUrlToUser(recipient, "/api/session/start");
         StartSessionResponse response = this.rest.postForObject(url, commitment, StartSessionResponse.class);
 
         // Create outgoing session object and store it
@@ -75,6 +96,8 @@ public class PaymentService {
 
         // Refresh user balance
         this.balance.addAndGet(-chainLength);
+
+        return sessionId;
     }
 
     public UUID startIncomingSession(Commitment commitment) {
@@ -94,42 +117,70 @@ public class PaymentService {
         return sessionId;
     }
 
-
     public void finishOutgoingSession(UUID sessionId) {
         this.userService.checkUserInitialized();
 
         OutgoingSession session = requireSession(this.outgoingSessions, sessionId);
         User recipient = session.getRecipient();
 
-        String url = buildUrlToUser(recipient, "/api/finish/{sessionId}");
+        String url = buildUrlToUser(recipient, "/api/session/finish/{sessionId}");
         this.rest.postForObject(url, null, Void.class, sessionId);
 
         // Everything is ok, we can return unpaid paywords to the user's balance
-        int unpaidPaywords = session.getPaywords().length - 1 - session.getLastPaymentIndex();
-        this.balance.addAndGet(unpaidPaywords);
-        this.outgoingSessions.remove(sessionId);
+        doFinishOutgoingSession(session);
     }
 
     public void finishIncomingSession(UUID sessionId) {
+        this.userService.checkUserInitialized();
+
+        IncomingSession session = requireSession(this.incomingSessions, sessionId);
+
+        // communicate to broker and update internal state
+        doFinishIncomingSession(session);
+
+        // notify user that session has been finished
+        UUID recipientId = session.getCommitment().getRecipientId();
+        User recipient = findOrThrowException(recipientId);
+        String url = buildUrlToUser(recipient, "/api/session/finished/{sessionId}");
+
+        this.rest.postForObject(url, null, Void.class, sessionId);
+    }
+
+    public void onOutgoingSessionFinished(UUID sessionId) {
+        doFinishOutgoingSession(requireSession(this.outgoingSessions, sessionId));
+    }
+
+    public void onIncomingSessionFinished(UUID sessionId) {
         doFinishIncomingSession(requireSession(this.incomingSessions, sessionId));
     }
 
-    private void doFinishIncomingSession(IncomingSession session) {
-        // TODO: finish
-        UUID sessionId = session.getSessionId();
+    /* ------------------ Methods which apply changes locally ----------------- */
 
+    private void doFinishOutgoingSession(OutgoingSession session) {
+        int unpaidPaywords = session.getPaywords().length - 1 - session.getLastPaymentIndex();
+        this.balance.addAndGet(unpaidPaywords);
+        this.outgoingSessions.remove(session.getSessionId());
+    }
+
+    private void doFinishIncomingSession(IncomingSession session) {
         Commitment commitment = session.getCommitment();
         Payment lastPayment = session.getLastPayment();
 
-        this.brokerService.redeem(commitment, lastPayment);
+        if (lastPayment != null) {
+            this.brokerService.redeem(commitment, lastPayment);
+            this.balance.addAndGet(lastPayment.getIndex());
+        }
 
         // Update internal state
-        this.balance.addAndGet(lastPayment.getIndex());
-        this.incomingSessions.remove(sessionId);
+        this.incomingSessions.remove(session.getSessionId());
     }
 
     private UUID getUserId(Commitment commitment) {
         return commitment.getCertificate().getUserId();
+    }
+
+    private UUID getUserId(OutgoingSession session) {
+        return session.getRecipient().getCertificate().getUserId();
     }
 
     private Commitment createCommitment(User recipient, byte[][] paywords) {
@@ -200,6 +251,7 @@ public class PaymentService {
 
     private String buildUrlToUser(User user, String path) {
         return UriComponentsBuilder.newInstance()
+                .scheme(user.isSecure() ? "https" : "http")
                 .host(user.getAddress())
                 .port(user.getPort())
                 .path(path)

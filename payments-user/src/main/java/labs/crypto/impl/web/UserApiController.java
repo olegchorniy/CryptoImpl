@@ -9,8 +9,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-import static org.springframework.web.bind.annotation.RequestMethod.POST;
-
 @RestController
 @RequestMapping("/api")
 public class UserApiController {
@@ -21,24 +19,24 @@ public class UserApiController {
         this.paymentService = paymentService;
     }
 
-    @RequestMapping(path = "/startSession", method = POST)
+    @PostMapping("/session/start")
     public StartSessionResponse startSession(@RequestBody Commitment commitment) {
         UUID sessionId = this.paymentService.startIncomingSession(commitment);
 
         return new StartSessionResponse(sessionId);
     }
 
-    @RequestMapping(path = "/finish/{sessionId}", method = POST)
-    public void finishSession(@PathVariable("sessionId") UUID sessionId) {
-        this.paymentService.finishIncomingSession(sessionId);
+    @PostMapping("/session/finish/{sessionId}")
+    public void finish(@PathVariable("sessionId") UUID sessionId) {
+        this.paymentService.onIncomingSessionFinished(sessionId);
     }
 
-    @RequestMapping(path = "/finished/{sessionId}", method = POST)
-    public void finishedSession(@PathVariable("sessionId") UUID sessionId) {
-        this.paymentService.finishOutgoingSession(sessionId);
+    @PostMapping("/session/finished/{sessionId}")
+    public void sessionFinished(@PathVariable("sessionId") UUID sessionId) {
+        this.paymentService.onOutgoingSessionFinished(sessionId);
     }
 
-    @RequestMapping("/transfer")
+    @PostMapping("/transfer")
     @ResponseStatus(HttpStatus.OK)
     public void transfer(@RequestBody TransferRequest request) {
         this.paymentService.receiveMoneyFrom(request.getSessionId(), request.getPayment());

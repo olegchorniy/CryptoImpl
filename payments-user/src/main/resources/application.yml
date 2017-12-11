@@ -1,5 +1,5 @@
 server:
-  port: 0
+  port: 8081
   # address:
 
 spring:
@@ -9,5 +9,5 @@ spring:
 
 payments:
   user-name: User_N1
-  user-address:
-  broker-address: localhost:8080
+  # user-address:
+  broker-address: http://localhost:8080

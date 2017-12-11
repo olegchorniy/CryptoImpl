@@ -22,7 +22,7 @@ public class UserService {
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     private final BrokerService brokerService;
-    private final PortProvider portProvider;
+    private final HostInfoProvider hostInfoProvider;
     private final ApplicationEventPublisher eventPublisher;
 
     @Value("${payments.user-name}")
@@ -34,16 +34,17 @@ public class UserService {
     private volatile User user;
     private volatile RSAPrivateKey privateKey;
 
-    public UserService(BrokerService brokerService, PortProvider portProvider, ApplicationEventPublisher eventPublisher) {
+    public UserService(BrokerService brokerService, HostInfoProvider hostInfoProvider, ApplicationEventPublisher eventPublisher) {
         this.brokerService = brokerService;
-        this.portProvider = portProvider;
+        this.hostInfoProvider = hostInfoProvider;
         this.eventPublisher = eventPublisher;
     }
 
     public void createAccount() {
         RegistrationRequest request = new RegistrationRequest(
                 this.userName,
-                this.portProvider.getHttpPort(),
+                this.hostInfoProvider.isSecure(),
+                this.hostInfoProvider.getHttpPort(),
                 this.userAddress
         );
 

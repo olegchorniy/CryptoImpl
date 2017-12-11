@@ -1,23 +1,20 @@
-package crypt.payments.registration;
+package labs.crypto.impl.model.ui;
 
-import crypt.payments.certificates.UserCertificate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class User {
+public class Vendor {
 
-    private volatile int balance;
-
-    private int port;
+    private UUID id;
+    private String name;
     private String address;
-    private boolean secure;
-
     private LocalDateTime registrationDate;
-    private UserCertificate certificate;
+    private UUID outgoingSessionId;
 }

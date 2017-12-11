@@ -5,6 +5,7 @@ import crypt.payments.certificates.Certificate;
 import crypt.payments.certificates.UserCertificate;
 import crypt.payments.exceptions.InvalidPaymentException;
 import crypt.payments.exceptions.SignatureVerificationException;
+import crypt.payments.exceptions.UserNotFoundException;
 import crypt.payments.payword.Commitment;
 import crypt.payments.payword.Payment;
 import crypt.payments.payword.PaywordUtilities;
@@ -72,16 +73,25 @@ public class Broker {
         UUID senderId = certificate.getUserId();
         UUID recipientId = commitment.getRecipientId();
 
-        // TODO: check if both of them are not null
-        User sender = this.users.get(senderId);
-        User recipient = this.users.get(recipientId);
+        User sender = requireUser(senderId);
+        User recipient = requireUser(recipientId);
 
         sender.setBalance(sender.getBalance() - amount);
         recipient.setBalance(recipient.getBalance() + amount);
     }
 
+    private User requireUser(UUID id) {
+        User user = this.users.get(id);
+        if (user == null) {
+            throw new UserNotFoundException(id);
+        }
+
+        return user;
+    }
+
     public RegistrationResponse registerUser(RegistrationRequest request) {
         String userName = request.getName();
+        boolean secure = request.isSecure();
         int port = request.getPort();
         String address = request.getAddress();
 
@@ -95,7 +105,7 @@ public class Broker {
         UserCertificate userCrt = new UserCertificate(this.name, userId, userName, now.plusDays(1), publicKey);
         SignatureUtils.sign(userCrt, this.signatureKey);
 
-        User user = new User(DEFAULT_BALANCE, port, address, now, userCrt);
+        User user = new User(DEFAULT_BALANCE, port, address, secure, now, userCrt);
 
         this.users.put(userId, user);
 
@@ -111,5 +121,11 @@ public class Broker {
 
     public Certificate getCertificate() {
         return certificate;
+    }
+
+    public int deleteUsers() {
+        int size = this.users.size();
+        this.users.clear();
+        return size;
     }
 }
