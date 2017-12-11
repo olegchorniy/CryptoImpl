@@ -83,7 +83,7 @@ public class PaymentService {
         UUID userId = getUserId(commitment);
 
         // Finish existing session from the same user if any.
-        findBy(this.incomingSessions, s -> getUserId(s.getCommitment()), userId).ifPresent(this::finishIncomingSession);
+        findBy(this.incomingSessions, s -> getUserId(s.getCommitment()), userId).ifPresent(this::doFinishIncomingSession);
 
         // Create new incoming session
         UUID sessionId = UUID.randomUUID();
@@ -92,6 +92,40 @@ public class PaymentService {
         this.incomingSessions.put(sessionId, session);
 
         return sessionId;
+    }
+
+
+    public void finishOutgoingSession(UUID sessionId) {
+        this.userService.checkUserInitialized();
+
+        OutgoingSession session = requireSession(this.outgoingSessions, sessionId);
+        User recipient = session.getRecipient();
+
+        String url = buildUrlToUser(recipient, "/api/finish/{sessionId}");
+        this.rest.postForObject(url, null, Void.class, sessionId);
+
+        // Everything is ok, we can return unpaid paywords to the user's balance
+        int unpaidPaywords = session.getPaywords().length - 1 - session.getLastPaymentIndex();
+        this.balance.addAndGet(unpaidPaywords);
+        this.outgoingSessions.remove(sessionId);
+    }
+
+    public void finishIncomingSession(UUID sessionId) {
+        doFinishIncomingSession(requireSession(this.incomingSessions, sessionId));
+    }
+
+    private void doFinishIncomingSession(IncomingSession session) {
+        // TODO: finish
+        UUID sessionId = session.getSessionId();
+
+        Commitment commitment = session.getCommitment();
+        Payment lastPayment = session.getLastPayment();
+
+        this.brokerService.redeem(commitment, lastPayment);
+
+        // Update internal state
+        this.balance.addAndGet(lastPayment.getIndex());
+        this.incomingSessions.remove(sessionId);
     }
 
     private UUID getUserId(Commitment commitment) {
@@ -111,24 +145,12 @@ public class PaymentService {
         return commitment;
     }
 
-    private void finishIncomingSession(IncomingSession session) {
-        // TODO: finish
-        UUID sessionId = session.getSessionId();
-        Commitment commitment = session.getCommitment();
-        Payment lastPayment = session.getLastPayment();
-
-        // this.brokerService.redeem();
-    }
-
     /* --------------- Payment methods ---------------- */
 
     public void transferMoneyTo(UUID sessionId, int amount) {
         this.userService.checkUserInitialized();
 
-        OutgoingSession session = this.outgoingSessions.get(sessionId);
-        if (session == null) {
-            throw new SessionNotFoundException(sessionId);
-        }
+        OutgoingSession session = requireSession(this.outgoingSessions, sessionId);
 
         User recipient = session.getRecipient();
         byte[][] paywords = session.getPaywords();
@@ -150,10 +172,7 @@ public class PaymentService {
     public void receiveMoneyFrom(UUID sessionId, Payment nextPayment) {
         this.userService.checkUserInitialized();
 
-        IncomingSession session = this.incomingSessions.get(sessionId);
-        if (session == null) {
-            throw new SessionNotFoundException(sessionId);
-        }
+        IncomingSession session = requireSession(this.incomingSessions, sessionId);
 
         Payment lastPayment = session.getLastPayment();
 
@@ -168,6 +187,15 @@ public class PaymentService {
 
     private User findOrThrowException(UUID id) {
         return this.brokerService.getUserById(id).orElseThrow(() -> new UserNotFoundException(id));
+    }
+
+    private static <V> V requireSession(Map<UUID, V> map, UUID sessionId) {
+        V session = map.get(sessionId);
+        if (session == null) {
+            throw new SessionNotFoundException(sessionId);
+        }
+
+        return session;
     }
 
     private String buildUrlToUser(User user, String path) {

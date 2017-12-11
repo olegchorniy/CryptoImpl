@@ -1,6 +1,9 @@
 package labs.crypto.impl.service;
 
 import crypt.payments.certificates.Certificate;
+import crypt.payments.payword.Commitment;
+import crypt.payments.payword.Payment;
+import crypt.payments.payword.RedeemRequest;
 import crypt.payments.registration.RegistrationRequest;
 import crypt.payments.registration.RegistrationResponse;
 import crypt.payments.registration.User;
@@ -41,6 +44,12 @@ public class BrokerService {
     public List<User> getRegisteredUsers() {
         String url = buildUrl("/api/users");
         return this.rest.exchange(url, HttpMethod.GET, null, users).getBody();
+    }
+
+    public void redeem(Commitment commitment, Payment lastPayment) {
+        String url = buildUrl("/api/redeem");
+        RedeemRequest request = new RedeemRequest(commitment, lastPayment);
+        this.rest.postForObject(url, request, Void.class);
     }
 
     public Optional<User> getUserById(UUID id) {
