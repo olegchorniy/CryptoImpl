@@ -1,4 +1,4 @@
-package labs.crypto.impl.exceptions;
+package crypt.payments.exceptions;
 
 public class SignatureVerificationException extends RuntimeException {
 

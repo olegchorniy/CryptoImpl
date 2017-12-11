@@ -46,7 +46,7 @@ public class BrokerService {
     public Optional<User> getUserById(UUID id) {
         return this.getRegisteredUsers()
                 .stream()
-                .filter(u -> u.getId().equals(id))
+                .filter(u -> u.getCertificate().getUserId().equals(id))
                 .findFirst();
     }
 

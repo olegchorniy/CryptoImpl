@@ -1,6 +1,7 @@
 package labs.crypto.impl.service;
 
 import crypt.payments.certificates.Certificate;
+import crypt.payments.exceptions.SignatureVerificationException;
 import crypt.payments.registration.RegistrationRequest;
 import crypt.payments.registration.RegistrationResponse;
 import crypt.payments.registration.User;
@@ -8,7 +9,6 @@ import crypt.payments.signatures.SignatureUtils;
 import crypt.payments.signatures.SignedData;
 import crypt.payments.signatures.rsa.RSAPrivateKey;
 import labs.crypto.impl.events.UserRegistrationEvent;
-import labs.crypto.impl.exceptions.SignatureVerificationException;
 import labs.crypto.impl.exceptions.UserNotRegisteredException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +52,7 @@ public class UserService {
 
         Certificate brokerCertificate = brokerService.getBrokerCertificate();
 
-        if (!SignatureUtils.verify(user.getCertificate(), brokerCertificate.getPublicKey())) {
+        if (!SignatureUtils.verify(user.getCertificate(), brokerCertificate)) {
             logger.error("Signature verification failure: registration response = {}, broker certificate = {}",
                     response, brokerCertificate);
 
@@ -65,11 +65,19 @@ public class UserService {
         this.eventPublisher.publishEvent(new UserRegistrationEvent(user));
     }
 
+    public User getUser() {
+        return this.user;
+    }
+
     public void sign(SignedData tbsDate) {
-        if (this.privateKey == null) {
-            throw new UserNotRegisteredException();
-        }
+        checkUserInitialized();
 
         SignatureUtils.sign(tbsDate, this.privateKey);
+    }
+
+    public void checkUserInitialized() {
+        if (this.user == null) {
+            throw new UserNotRegisteredException();
+        }
     }
 }

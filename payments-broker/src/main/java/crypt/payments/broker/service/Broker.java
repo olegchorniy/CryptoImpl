@@ -1,7 +1,13 @@
 package crypt.payments.broker.service;
 
+import crypt.payments.broker.exceptions.InvalidBrokerNameException;
 import crypt.payments.certificates.Certificate;
 import crypt.payments.certificates.UserCertificate;
+import crypt.payments.exceptions.InvalidPaymentException;
+import crypt.payments.exceptions.SignatureVerificationException;
+import crypt.payments.payword.Commitment;
+import crypt.payments.payword.Payment;
+import crypt.payments.payword.PaywordUtilities;
 import crypt.payments.registration.RegistrationRequest;
 import crypt.payments.registration.RegistrationResponse;
 import crypt.payments.registration.User;
@@ -36,23 +42,62 @@ public class Broker {
         this.signatureKey = signatureKey;
     }
 
+    public void redeem(Commitment commitment, Payment payment) {
+        UserCertificate certificate = commitment.getCertificate();
+
+        byte[] root = commitment.getRoot();
+
+        // 1. Verify payment itself
+        if (!PaywordUtilities.verifyPayment(PaywordUtilities.PAYWORD_HASH, root, payment)) {
+            throw new InvalidPaymentException(root, payment);
+        }
+
+        // 2. Verify user's signature on the commitment
+        if (!SignatureUtils.verify(commitment, certificate)) {
+            throw new SignatureVerificationException("Commitment signature verification failed");
+        }
+
+        // 3. Verify users certificate
+        if (!this.name.equals(certificate.getBroker())) {
+            throw new InvalidBrokerNameException(certificate.getBroker(), this.name);
+        }
+
+        if (!SignatureUtils.verify(certificate, this.certificate)) {
+            throw new SignatureVerificationException("UserCertificate signature verification failed");
+        }
+
+        // 4. Transfer funds.
+
+        int amount = payment.getIndex();
+        UUID senderId = certificate.getUserId();
+        UUID recipientId = commitment.getRecipientId();
+
+        // TODO: check if both of them are not null
+        User sender = this.users.get(senderId);
+        User recipient = this.users.get(recipientId);
+
+        sender.setBalance(sender.getBalance() - amount);
+        recipient.setBalance(recipient.getBalance() + amount);
+    }
+
     public RegistrationResponse registerUser(RegistrationRequest request) {
         String userName = request.getName();
-        String address = request.getAddress();
         int port = request.getPort();
+        String address = request.getAddress();
 
         RSAKeyPair keyPair = RSAKeyFactory.generateKeyPair(KEY_SIZE);
         RSAPublicKey publicKey = keyPair.getPublicKey();
         RSAPrivateKey privateKey = keyPair.getPrivateKey();
 
         LocalDateTime now = LocalDateTime.now();
+        UUID userId = UUID.randomUUID();
 
-        UserCertificate userCrt = new UserCertificate(this.name, userName, now.plusDays(1), publicKey);
+        UserCertificate userCrt = new UserCertificate(this.name, userId, userName, now.plusDays(1), publicKey);
         SignatureUtils.sign(userCrt, this.signatureKey);
 
-        User user = new User(UUID.randomUUID(), DEFAULT_BALANCE, port, address, now, userCrt);
+        User user = new User(DEFAULT_BALANCE, port, address, now, userCrt);
 
-        this.users.put(user.getId(), user);
+        this.users.put(userId, user);
 
         return new RegistrationResponse(user, privateKey);
     }

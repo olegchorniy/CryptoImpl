@@ -1,11 +1,14 @@
 package crypt.payments.signatures.encoding;
 
+import crypt.payments.signatures.Encodable;
+
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
+import java.util.UUID;
 
 public class Encoder {
 
@@ -16,9 +19,7 @@ public class Encoder {
     }
 
     public Encoder putString(String s) {
-        this.putBytes(s.getBytes(StandardCharsets.UTF_8));
-
-        return this;
+        return this.putBytes(s.getBytes(StandardCharsets.UTF_8));
     }
 
     public Encoder putLocalDateTime(LocalDateTime localDateTime) {
@@ -45,10 +46,19 @@ public class Encoder {
         return this;
     }
 
-    public Encoder putDate(Date date) {
-        this.putLong(date.getTime());
+    public Encoder putEncodable(Encodable encodable) {
+        return this.putBytes(encodable.encode());
+    }
+
+    public Encoder putUUID(UUID id) {
+        this.putLong(id.getMostSignificantBits());
+        this.putLong(id.getLeastSignificantBits());
 
         return this;
+    }
+
+    public Encoder putDate(Date date) {
+        return this.putLong(date.getTime());
     }
 
     public Encoder putLong(long v) {

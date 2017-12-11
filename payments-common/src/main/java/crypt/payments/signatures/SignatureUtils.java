@@ -1,5 +1,6 @@
 package crypt.payments.signatures;
 
+import crypt.payments.certificates.Certificate;
 import crypt.payments.signatures.rsa.RSAPrivateKey;
 import crypt.payments.signatures.rsa.RSAPublicKey;
 import lombok.SneakyThrows;
@@ -25,6 +26,10 @@ public abstract class SignatureUtils {
         byte[] signature = signer.sign();
 
         signedData.setSignature(signature);
+    }
+
+    public static boolean verify(SignedData signedData, Certificate certificate) {
+        return verify(signedData, certificate.getPublicKey());
     }
 
     @SneakyThrows(SignatureException.class)

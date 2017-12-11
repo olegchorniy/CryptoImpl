@@ -5,10 +5,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class Payment {
+@AllArgsConstructor
+public class RedeemRequest {
 
-    private int index;
-    private byte[] payword;
+    private Commitment commitment;
+    private Payment payment;
 }

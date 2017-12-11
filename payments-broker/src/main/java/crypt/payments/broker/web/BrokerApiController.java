@@ -2,6 +2,7 @@ package crypt.payments.broker.web;
 
 import crypt.payments.broker.service.Broker;
 import crypt.payments.certificates.Certificate;
+import crypt.payments.payword.RedeemRequest;
 import crypt.payments.registration.RegistrationRequest;
 import crypt.payments.registration.RegistrationResponse;
 import crypt.payments.registration.User;
@@ -49,7 +50,7 @@ public class BrokerApiController {
     }
 
     @RequestMapping(path = "/redeem", method = POST)
-    public void redeem() {
-        throw new UnsupportedOperationException();
+    public void redeem(@RequestBody RedeemRequest request) {
+        this.broker.redeem(request.getCommitment(), request.getPayment());
     }
 }

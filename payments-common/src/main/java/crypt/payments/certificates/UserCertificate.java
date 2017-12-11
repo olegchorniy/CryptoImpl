@@ -5,6 +5,7 @@ import crypt.payments.signatures.rsa.RSAPublicKey;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -14,9 +15,11 @@ import java.time.LocalDateTime;
 public class UserCertificate extends Certificate {
 
     private String broker;
+    private UUID userId;
 
-    public UserCertificate(String broker, String userName, LocalDateTime expirationDate, RSAPublicKey publicKey) {
+    public UserCertificate(String broker, UUID userId, String userName, LocalDateTime expirationDate, RSAPublicKey publicKey) {
         super(userName, expirationDate, publicKey);
+        this.userId = userId;
         this.broker = broker;
     }
 
@@ -24,6 +27,7 @@ public class UserCertificate extends Certificate {
     public byte[] encode() {
         return new Encoder()
                 .putBytes(super.encode())
+                .putUUID(this.userId)
                 .putString(this.broker)
                 .encode();
     }
