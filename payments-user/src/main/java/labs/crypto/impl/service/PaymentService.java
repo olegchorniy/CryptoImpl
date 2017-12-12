@@ -103,6 +103,9 @@ public class PaymentService {
     public UUID startIncomingSession(Commitment commitment) {
         this.userService.checkUserInitialized();
 
+        //TODO: it would be great to check if the recipient id from the request is equal to our id
+        //UUID recipientId = commitment.getRecipientId();
+
         UUID userId = getUserId(commitment);
 
         // Finish existing session from the same user if any.
@@ -123,8 +126,8 @@ public class PaymentService {
         OutgoingSession session = requireSession(this.outgoingSessions, sessionId);
         User recipient = session.getRecipient();
 
-        String url = buildUrlToUser(recipient, "/api/session/finish/{sessionId}");
-        this.rest.postForObject(url, null, Void.class, sessionId);
+        String url = buildUrlToUser(recipient, "/api/session/finish/{sessionId}", sessionId);
+        this.rest.postForObject(url, null, Void.class);
 
         // Everything is ok, we can return unpaid paywords to the user's balance
         doFinishOutgoingSession(session);
@@ -139,11 +142,11 @@ public class PaymentService {
         doFinishIncomingSession(session);
 
         // notify user that session has been finished
-        UUID recipientId = session.getCommitment().getRecipientId();
-        User recipient = findOrThrowException(recipientId);
-        String url = buildUrlToUser(recipient, "/api/session/finished/{sessionId}");
+        UUID senderId = session.getCommitment().getCertificate().getUserId();
+        User sender = findOrThrowException(senderId);
+        String url = buildUrlToUser(sender, "/api/session/finished/{sessionId}", sessionId);
 
-        this.rest.postForObject(url, null, Void.class, sessionId);
+        this.rest.postForObject(url, null, Void.class);
     }
 
     public void onOutgoingSessionFinished(UUID sessionId) {
@@ -227,11 +230,26 @@ public class PaymentService {
 
         Payment lastPayment = session.getLastPayment();
 
+        if (lastPayment == null) {
+            checkAgainstRoot(session, nextPayment);
+        } else {
+            checkAgainstPrevPayment(sessionId, lastPayment, nextPayment);
+        }
+
+        session.setLastPayment(nextPayment);
+    }
+
+    private void checkAgainstRoot(IncomingSession session, Payment nextPayment) {
+        byte[] root = session.getCommitment().getRoot();
+        if (!PaywordUtilities.verifyPayment(PaywordUtilities.PAYWORD_HASH, root, nextPayment)) {
+            throw new InvalidPaymentException(root, nextPayment);
+        }
+    }
+
+    private void checkAgainstPrevPayment(UUID sessionId, Payment lastPayment, Payment nextPayment) {
         if (!PaywordUtilities.verifyPayment(PaywordUtilities.PAYWORD_HASH, lastPayment, nextPayment)) {
             throw new InvalidPaymentException(sessionId, lastPayment, nextPayment);
         }
-
-        session.setLastPayment(lastPayment);
     }
 
     /* ---------------- Utilities ------------------ */
@@ -249,13 +267,13 @@ public class PaymentService {
         return session;
     }
 
-    private String buildUrlToUser(User user, String path) {
+    private String buildUrlToUser(User user, String path, Object... uriVariables) {
         return UriComponentsBuilder.newInstance()
                 .scheme(user.isSecure() ? "https" : "http")
                 .host(user.getAddress())
                 .port(user.getPort())
                 .path(path)
-                .build()
+                .buildAndExpand(uriVariables)
                 .encode()
                 .toUriString();
     }

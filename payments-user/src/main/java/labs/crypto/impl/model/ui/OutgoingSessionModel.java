@@ -11,7 +11,6 @@ import java.util.UUID;
 public class OutgoingSessionModel {
 
     private UUID sessionId;
-    private RecipientModel recipient;
-    private int transferredPaywords;
+    private int transferredAmount;
     private List<PaywordModel> paywords;
 }

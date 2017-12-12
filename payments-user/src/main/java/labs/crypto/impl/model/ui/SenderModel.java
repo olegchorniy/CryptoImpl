@@ -7,10 +7,9 @@ import java.util.UUID;
 
 @Getter
 @AllArgsConstructor
-public class IncomingSessionModel {
+public class SenderModel {
 
-    private SenderModel sender;
-    private UUID sessionId;
-    private int amount;
-    private String root;
+    private UUID id;
+    private String name;
+    // private String address;
 }

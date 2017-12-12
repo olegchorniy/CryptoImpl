@@ -7,5 +7,5 @@ import lombok.Getter;
 @AllArgsConstructor
 public class PaywordModel {
     private boolean paid;
-    private String payword;
+    private String hash;
 }

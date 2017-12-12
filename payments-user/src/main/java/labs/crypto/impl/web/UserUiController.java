@@ -2,6 +2,8 @@ package labs.crypto.impl.web;
 
 import crypt.payments.certificates.Certificate;
 import crypt.payments.certificates.UserCertificate;
+import crypt.payments.payword.Commitment;
+import crypt.payments.payword.Payment;
 import crypt.payments.registration.User;
 import crypt.payments.utils.HexUtils;
 import labs.crypto.impl.model.OutgoingSession;
@@ -40,7 +42,7 @@ public class UserUiController {
     }
 
     @GetMapping("/")
-    public String index(@RequestParam(name = "session", required = false) UUID sessionId, Model model) {
+    public String index(@RequestParam(name = "recipient", required = false) UUID recipientId, Model model) {
         User user = this.userService.getUser();
         if (user != null) {
             UserCertificate userCertificate = user.getCertificate();
@@ -65,12 +67,36 @@ public class UserUiController {
         model.addAttribute("broker", brokerModel);
 
         if (brokerModel != null) {
-            if (sessionId != null) {
-                model.addAttribute("outgoingSession", getOutgoingSession(sessionId));
+            if (recipientId != null) {
+                model.addAttribute("recipient", makeRecipient(recipientId));
             }
+
+            model.addAttribute("incomingSessions", makeIncomingSessions());
         }
 
         return "index";
+    }
+
+    private List<IncomingSessionModel> makeIncomingSessions() {
+        return this.paymentService.getIncomingSessions()
+                .stream()
+                .map(session -> {
+                    UUID sessionId = session.getSessionId();
+                    Payment payment = session.getLastPayment();
+
+                    Commitment commitment = session.getCommitment();
+                    UserCertificate certificate = commitment.getCertificate();
+                    SenderModel sender = new SenderModel(certificate.getUserId(), certificate.getSubjectName());
+
+
+                    return new IncomingSessionModel(
+                            sender,
+                            sessionId,
+                            payment == null ? 0 : payment.getIndex(),
+                            HexUtils.toHex(commitment.getRoot())
+                    );
+                })
+                .collect(Collectors.toList());
     }
 
     private BrokerModel getBrokerModel(User user) {
@@ -111,21 +137,26 @@ public class UserUiController {
         );
     }
 
-    private OutgoingSessionModel getOutgoingSession(UUID sessionId) {
-        OutgoingSession session = this.paymentService.getOutgoingSessionById(sessionId);
-        if (session == null) {
-            return null;
-        }
+    private RecipientModel makeRecipient(UUID vendorId) {
+        return this.brokerService.getUserById(vendorId)
+                .map(recipient -> {
+                    UserCertificate certificate = recipient.getCertificate();
 
-        return makeOutgoingSession(session);
+                    OutgoingSession session = this.paymentService.getOutgoingSessionByRecipient(vendorId);
+                    OutgoingSessionModel sessionModel = session == null ? null : makeSessionModel(session);
+
+                    return new RecipientModel(
+                            vendorId,
+                            certificate.getSubjectName(),
+                            userAddress(recipient),
+                            sessionModel
+                    );
+                })
+                .orElse(null);
     }
 
-    private OutgoingSessionModel makeOutgoingSession(OutgoingSession session) {
+    private OutgoingSessionModel makeSessionModel(OutgoingSession session) {
         UUID sessionId = session.getSessionId();
-        User recipient = session.getRecipient();
-        UserCertificate certificate = recipient.getCertificate();
-
-        RecipientModel recipientModel = new RecipientModel(certificate.getSubjectName(), userAddress(recipient));
 
         int amount = session.getLastPaymentIndex();
         byte[][] paywords = session.getPaywords();
@@ -136,7 +167,6 @@ public class UserUiController {
 
         return new OutgoingSessionModel(
                 sessionId,
-                recipientModel,
                 amount,
                 paywordsModel
         );

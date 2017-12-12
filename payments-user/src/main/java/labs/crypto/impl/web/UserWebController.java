@@ -41,6 +41,13 @@ public class UserWebController {
         this.userService.createAccount();
     }
 
+    @PostMapping("/transfer")
+    @ResponseStatus(HttpStatus.OK)
+    public void transferMoney(@RequestParam("sessionId") UUID sessionId,
+                              @RequestParam("amount") int amount) {
+        this.paymentService.transferMoneyTo(sessionId, amount);
+    }
+
     @PostMapping("/outgoing/start")
     @ResponseStatus(HttpStatus.OK)
     public void startSession(@RequestParam("recipientId") UUID recipientId,
